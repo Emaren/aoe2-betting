@@ -1,17 +1,13 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import sqlite3 from "sqlite3";
-import { open } from "sqlite";
+import Database from "better-sqlite3";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
     try {
-        const db = await open({
-            filename: "game_stats.db",
-            driver: sqlite3.Database
-        });
+        const db = new Database("game_stats.db", { verbose: console.log });
 
-        const rows = await db.all(
+        const rows = db.prepare(
             "SELECT id, replay_file, game_version, map, game_type, duration, winner, players, timestamp FROM game_stats ORDER BY timestamp DESC LIMIT 10"
-        );
+        ).all();
 
         const games = rows.map(row => ({
             id: row.id,
