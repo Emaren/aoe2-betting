@@ -1,39 +1,33 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { Pool } from "pg"; // PostgreSQL Connection Pool
+import { Pool } from "pg";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // CORS Middleware
 const allowCors = (req: NextApiRequest, res: NextApiResponse) => {
-  res.setHeader("Access-Control-Allow-Origin", "*"); // Allow all origins (restrict if needed)
+  res.setHeader("Access-Control-Allow-Origin", "*");  // Allow all origins
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  // Handle preflight requests
+  
   if (req.method === "OPTIONS") {
-    res.status(204).end();
+    res.status(200).end();
     return true;
   }
   return false;
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Apply CORS middleware
   if (allowCors(req, res)) return;
 
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
-
   try {
-    const client = await pool.connect(); // Get a DB connection from the pool
+    const client = await pool.connect();
     const result = await client.query(`
       SELECT id, replay_file, game_version, map, game_type, duration, winner, players, timestamp
       FROM game_stats
       ORDER BY timestamp DESC
       LIMIT 10
     `);
-    client.release(); // Release the DB connection back to the pool
+    client.release();
 
     const games = result.rows.map((row) => ({
       id: row.id,
@@ -43,14 +37,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       game_type: row.game_type,
       game_duration: `${Math.floor(row.duration / 60)} minutes ${row.duration % 60} seconds`,
       winner: row.winner,
-      players: row.players ? JSON.parse(row.players) : [], // Ensure valid JSON parsing
+      players: row.players ? JSON.parse(row.players) : [],
       timestamp: row.timestamp,
     }));
 
     res.status(200).json({ games });
   } catch (error) {
-    console.error("Database Query Error:", error); // Log error for debugging
-    const err = error as Error;
-    res.status(500).json({ error: err.message || "Internal Server Error" });
+    console.error("Database Query Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 }
