@@ -10,13 +10,20 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 # Load configuration
 config = load_config()
 
-# ✅ Set the correct Flask API URL (8002)
+# ✅ Set the correct Flask API URL (e.g. local: "http://127.0.0.1:8002" or production URL)
 API_BASE_URL = config.get("api_endpoint", "http://127.0.0.1:8002")
 
-# Define endpoints
-API_REPLAY_ENDPOINT = f"{API_BASE_URL}/api/replays"
-API_GAME_STATS_ENDPOINT = f"{API_BASE_URL}/api/game_stats".replace("//api", "/api")
+def join_url(base: str, path: str) -> str:
+    """Helper to join base URL and path segments without duplicate slashes."""
+    if base.endswith("/"):
+        base = base[:-1]
+    if not path.startswith("/"):
+        path = "/" + path
+    return base + path
 
+# Define endpoints using the join_url helper
+API_REPLAY_ENDPOINT = join_url(API_BASE_URL, "api/replays")
+API_GAME_STATS_ENDPOINT = join_url(API_BASE_URL, "api/game_stats")
 
 def send_stats_to_backend(stats):
     """
