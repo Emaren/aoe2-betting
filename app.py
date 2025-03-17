@@ -71,6 +71,16 @@ def handle_exception(e):
     return response
 
 # ------------------------------------------------------------------------------
+# After-request hook to add CORS headers on all responses
+# ------------------------------------------------------------------------------
+@app.after_request
+def add_cors_headers(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
+    return response
+
+# ------------------------------------------------------------------------------
 # Helper Function: Extract Timestamp from Filename
 # ------------------------------------------------------------------------------
 def extract_timestamp_from_filename(filename):
