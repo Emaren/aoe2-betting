@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO)
 # ------------------------------------------------------------------------------
 # Database Setup (PostgreSQL via SQLAlchemy)
 # ------------------------------------------------------------------------------
-# Example format: "postgresql://username:password@host:port/dbname"
+# Example: "postgresql://username:password@host:port/dbname"
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL not set. Please set your Postgres connection string.")
