@@ -19,8 +19,12 @@ from mgz import header, summary
 app = Flask(__name__)  # ✅ Use `app` to match Gunicorn expectations
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+# Ensure instance directory exists
+INSTANCE_DIR = os.path.join(os.path.dirname(__file__), "instance")
+os.makedirs(INSTANCE_DIR, exist_ok=True)
+
 # Use the correct SQLite database
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), "instance", "game_stats.db")
+DATABASE_PATH = os.path.join(INSTANCE_DIR, "game_stats.db")
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DATABASE_PATH}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -204,16 +208,28 @@ def game_stats():
     return jsonify(results)
 
 # ------------------------------------------------------------------------------
-# Default Route to Avoid 404 Errors
+# Additional Routes
 # ------------------------------------------------------------------------------
+@app.route("/healthcheck", methods=["GET"])
+def healthcheck():
+    return jsonify({"status": "healthy", "message": "API is up and running!"}), 200
+
+@app.route("/dbtest", methods=["GET"])
+def dbtest():
+    try:
+        result = db.session.execute("SELECT 1").fetchone()
+        return jsonify({"status": "success", "db": "connected"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/")
 def home():
     return jsonify({"message": "AoE2 Parsing API is running!"})
 
 # ------------------------------------------------------------------------------
-# Run the Flask app
+# Run Flask app
 # ------------------------------------------------------------------------------
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    port = int(os.getenv("PORT", 8002))  # ✅ Ensure correct dynamic port
+    port = int(os.getenv("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
