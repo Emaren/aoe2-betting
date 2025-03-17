@@ -1,0 +1,4 @@
+LOAD DATABASE
+    FROM sqlite:///Users/tonyblum/projects/aoe2de-parsing/aoc-mgz/instance/game_stats.db
+    INTO postgresql://postgres.qthrpeakxpyulwjavhpj:shU5F3K8lIKnGSjW@aws-0-us-west-1.pooler.supabase.com:5432/postgres
+WITH include drop, create tables, data only;

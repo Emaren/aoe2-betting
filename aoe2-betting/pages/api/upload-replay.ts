@@ -1,23 +1,27 @@
 import { NextApiRequest, NextApiResponse } from "next";
 
-let bets = {};  // In production, this would be stored in a DB
+// Define the structure for a bet
+interface Bet {
+    match_id: string;
+    player_1: string;
+    player_2: string;
+    amount: number;
+    accepted: boolean;
+    winner: string | null;
+}
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    if (req.method !== "POST") {
-        return res.status(405).json({ error: "Method Not Allowed" });
-    }
+// Store bets in memory (should be replaced with a DB in production)
+const bets: Record<string, Bet> = {};
 
-    const { match_id } = req.query;
-    const { winner } = req.body;
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+    const matchId = Array.isArray(req.query.match_id) ? req.query.match_id[0] : req.query.match_id;
 
-    if (!match_id || !bets[match_id]) {
+    if (!matchId || !bets[matchId]) {
         return res.status(404).json({ error: "Bet not found." });
     }
 
-    if (bets[match_id].winner) {
-        return res.status(400).json({ error: "Bet already settled." });
-    }
+    const { winner } = req.body;
+    bets[matchId].winner = winner;
 
-    bets[match_id].winner = winner;
-    return res.status(200).json({ message: `Bet settled! ${winner} won the bet.` });
+    return res.status(200).json({ message: "Replay uploaded!", bet: bets[matchId] });
 }
