@@ -24,12 +24,15 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 logging.basicConfig(level=logging.INFO)
 
 # ------------------------------------------------------------------------------
-# Database Setup (PostgreSQL via SQLAlchemy)
+# Database Setup (with SQLite fallback for local testing)
 # ------------------------------------------------------------------------------
-# Example: "postgresql://username:password@host:port/dbname"
+# For production, set DATABASE_URL to your PostgreSQL connection string, for example:
+# "postgresql://game_stats_user:YourPassword@dpg-cvbmtsofnakc73dmmklg-a.oregon-postgres.render.com/game_stats?sslmode=require"
+#
+# For local testing, if DATABASE_URL is not set, we fallback to using your local SQLite file.
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL not set. Please set your Postgres connection string.")
+    DATABASE_URL = "sqlite:////System/Volumes/Data/Users/tonyblum/projects/aoe2de-parsing/aoc-mgz/instance/game_stats.db"
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -51,7 +54,7 @@ class GameStats(db.Model):
     players = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, nullable=False)
 
-# Ensure the table exists (for quick dev/demo). For production, consider migrations.
+# Ensure the table exists (for quick dev/demo). For production, consider using migrations.
 with app.app_context():
     try:
         db.create_all()
@@ -224,19 +227,15 @@ def get_game_stats():
     try:
         all_games = GameStats.query.order_by(GameStats.timestamp.desc()).all()
         results = []
-
         for game in all_games:
-            # Convert stored JSON strings back to objects
             try:
                 map_data = json.loads(game.map) if game.map else {}
             except json.JSONDecodeError:
                 map_data = {}
-
             try:
                 player_data = json.loads(game.players) if game.players else []
             except json.JSONDecodeError:
                 player_data = []
-
             results.append({
                 "id": game.id,
                 "game_version": game.game_version,
@@ -247,9 +246,8 @@ def get_game_stats():
                 "players": player_data,
                 "timestamp": str(game.timestamp)
             })
-
-        return jsonify(results)
-
+        # Wrap the results in an object for frontend compatibility
+        return jsonify({"games": results})
     except SQLAlchemyError as e:
         logging.error(f"❌ Error fetching from DB: {e}")
         return jsonify({"error": "Database Fetch Error"}), 500
@@ -259,16 +257,10 @@ def get_game_stats():
 # ------------------------------------------------------------------------------
 @app.route("/healthcheck", methods=["GET"])
 def healthcheck():
-    """
-    Quick health route for Render.
-    """
     return jsonify({"status": "healthy", "message": "API is up and running!"}), 200
 
 @app.route("/dbtest", methods=["GET"])
 def dbtest():
-    """
-    Test the database connection by executing a simple query.
-    """
     try:
         test = db.session.execute("SELECT 1 as test_col").fetchone()
         return jsonify({"status": "success", "db_test_result": test.test_col if test else None}), 200

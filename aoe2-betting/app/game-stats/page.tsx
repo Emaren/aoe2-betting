@@ -38,36 +38,25 @@ interface GameStats {
 
 // --- Helper to clean up "game_type" string ---
 function cleanGameType(rawType: string): string {
-  // Example input: "(<Version.DE: 21>, 'VER 9.4', 63.0, 5, 133431)"
-  // We extract 'VER 9.4'
   const match = rawType.match(/'(VER.*?)'/);
   return match && match[1] ? match[1] : rawType;
 }
 
-// --- Helper to format duration from total seconds to "X hours Y minutes Z seconds" style ---
+// --- Helper to format duration from total seconds to a human-readable string ---
 function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
   const remainder = totalSeconds % 3600;
   const minutes = Math.floor(remainder / 60);
   const secs = remainder % 60;
-
   const hourStr = hours === 1 ? "1 hour" : `${hours} hours`;
   const minStr = minutes === 1 ? "1 minute" : `${minutes} minutes`;
   const secStr = secs === 1 ? "1 second" : `${secs} seconds`;
-
-  if (hours > 0 && minutes > 0 && secs > 0) {
-    return `${hourStr} ${minStr} ${secStr}`;
-  } else if (hours > 0 && minutes > 0) {
-    return `${hourStr} ${minStr}`;
-  } else if (hours > 0) {
-    return hourStr;
-  } else if (minutes > 0 && secs > 0) {
-    return `${minStr} ${secStr}`;
-  } else if (minutes > 0) {
-    return minStr;
-  } else {
-    return secStr;
-  }
+  if (hours > 0 && minutes > 0 && secs > 0) return `${hourStr} ${minStr} ${secStr}`;
+  if (hours > 0 && minutes > 0) return `${hourStr} ${minStr}`;
+  if (hours > 0) return hourStr;
+  if (minutes > 0 && secs > 0) return `${minStr} ${secStr}`;
+  if (minutes > 0) return minStr;
+  return secStr;
 }
 
 const GameStatsPage: React.FC = () => {
@@ -78,43 +67,33 @@ const GameStatsPage: React.FC = () => {
   useEffect(() => {
     const fetchGameStats = async (): Promise<void> => {
       try {
-        const API_BASE_URL = "https://aoe2de-parsing.onrender.com"; // Replace with your Render URL
+        const API_BASE_URL = "https://aoe2de-betting-api.onrender.com/api";
+        const response = await fetch(`${API_BASE_URL}/game_stats?ts=${Date.now()}`, { cache: "no-store" });
+        const result = await response.json();
+        console.log("🔍 RAW API Response:", result);
 
-        const response = await fetch(
-          `${API_BASE_URL}/api/game_stats?ts=${Date.now()}`,
-          { cache: "no-store" }
-        );
+        // If result is an object with a "games" key, extract that; otherwise, assume it's already an array.
+        const gamesArray: GameStats[] = Array.isArray(result) ? result : result.games;
 
-        const data = (await response.json()) as GameStats[];
-        console.log("🔍 RAW API Response:", data);
-
-        if (!Array.isArray(data)) {
+        if (!Array.isArray(gamesArray)) {
           console.warn("⚠️ No game stats array found in API response.");
           setLoading(false);
           return;
         }
 
         // Convert fields that might be stored as JSON strings.
-        const formattedGames: GameStats[] = data.map((game: GameStats): GameStats => {
+        const formattedGames: GameStats[] = gamesArray.map((game: GameStats): GameStats => {
           const safePlayers: PlayerStats[] =
-            typeof game.players === "string"
-              ? (JSON.parse(game.players) as PlayerStats[])
-              : game.players;
-
+            typeof game.players === "string" ? JSON.parse(game.players) : game.players;
           let safeMap: MapData | string = game.map;
           if (typeof safeMap === "string") {
             try {
               safeMap = JSON.parse(safeMap) as MapData;
             } catch {
-              // Fallback: keep as string.
+              // fallback: keep as string
             }
           }
-
-          return {
-            ...game,
-            players: safePlayers,
-            map: safeMap,
-          };
+          return { ...game, players: safePlayers, map: safeMap };
         });
 
         // Filter out games with empty players.
@@ -128,7 +107,6 @@ const GameStatsPage: React.FC = () => {
         }
 
         // Sort games by timestamp (newest first).
-        // Replace the space with "T" so the string parses as ISO format.
         validGames.sort((a: GameStats, b: GameStats) => {
           const dateA = new Date(a.timestamp.replace(" ", "T")).valueOf();
           const dateB = new Date(b.timestamp.replace(" ", "T")).valueOf();
@@ -144,17 +122,14 @@ const GameStatsPage: React.FC = () => {
     };
 
     fetchGameStats();
-    // Optional: auto-refresh every 3 seconds.
+    // Auto-refresh every 3 seconds
     const interval = setInterval(fetchGameStats, 3000);
     return () => clearInterval(interval);
   }, []);
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-12">
-      <h2 className="text-3xl font-bold text-center mb-6 text-gray-400">
-        Game Stats
-      </h2>
-
+      <h2 className="text-3xl font-bold text-center mb-6 text-gray-400">Game Stats</h2>
       {loading ? (
         <p className="text-center text-gray-400">Loading game stats...</p>
       ) : games.length === 0 ? (
@@ -162,7 +137,6 @@ const GameStatsPage: React.FC = () => {
       ) : (
         <div className="space-y-6">
           {games.map((game: GameStats, index: number) => {
-            // The newest game is index=0 ("Latest Match")
             const isLatest = index === 0;
             return (
               <div
@@ -174,9 +148,7 @@ const GameStatsPage: React.FC = () => {
                 }`}
               >
                 <h3 className="text-2xl font-semibold">
-                  {isLatest
-                    ? "🔥 Latest Match"
-                    : `Previous Match #${games.length - index}`}
+                  {isLatest ? "🔥 Latest Match" : `Previous Match #${games.length - index}`}
                 </h3>
                 <p className="text-lg mt-2">
                   <strong>Game Version:</strong> {game.game_version}
@@ -191,21 +163,17 @@ const GameStatsPage: React.FC = () => {
                 <p className="text-lg">
                   <strong>Duration:</strong> {formatDuration(game.duration)}
                 </p>
-
                 <h4 className="text-xl font-semibold mt-4">Players</h4>
                 <div className="mt-2 space-y-2">
                   {game.players.map((player: PlayerStats, idx: number) => (
                     <div
                       key={idx}
                       className={`p-4 rounded-lg ${
-                        player.winner
-                          ? "bg-gray-500 text-black font-bold"
-                          : "bg-gray-600 text-black"
+                        player.winner ? "bg-gray-500 text-black font-bold" : "bg-gray-600 text-black"
                       }`}
                     >
                       <p>
-                        <strong>Name:</strong> {player.name}{" "}
-                        {player.winner && "🏆"}
+                        <strong>Name:</strong> {player.name} {player.winner && "🏆"}
                       </p>
                       <p>
                         <strong>Civilization:</strong> {player.civilization}
@@ -248,7 +216,6 @@ const GameStatsPage: React.FC = () => {
           })}
         </div>
       )}
-
       <div className="text-center mt-8">
         <Button
           className="bg-blue-700 hover:bg-blue-700 px-6 py-3 text-white font-semibold"
