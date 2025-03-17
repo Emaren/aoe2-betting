@@ -16,15 +16,15 @@ from mgz import header, summary
 # ------------------------------------------------------------------------------
 # Flask app & DB setup
 # ------------------------------------------------------------------------------
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+flask_app = Flask(__name__)  # ✅ Changed variable name to match Gunicorn
+CORS(flask_app, resources={r"/*": {"origins": "*"}})
 
 # Use the correct SQLite database
 DATABASE_PATH = os.path.join(os.path.dirname(__file__), "instance", "game_stats.db")
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DATABASE_PATH}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+flask_app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DATABASE_PATH}"
+flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
+db = SQLAlchemy(flask_app)
 
 # ------------------------------------------------------------------------------
 # Define the GameStats model
@@ -41,13 +41,13 @@ class GameStats(db.Model):
     timestamp = db.Column(db.DateTime, nullable=False)
 
 # Ensure tables exist on startup
-with app.app_context():
+with flask_app.app_context():
     db.create_all()
 
 # ------------------------------------------------------------------------------
 # Global error handler to ensure CORS on errors
 # ------------------------------------------------------------------------------
-@app.errorhandler(Exception)
+@flask_app.errorhandler(Exception)
 def handle_exception(e):
     logging.error(f"❌ Uncaught Exception: {e}", exc_info=True)
     response = jsonify({"error": str(e)})
@@ -131,11 +131,10 @@ def parse_replay(replay_path):
         logging.error(f"❌ Error parsing replay: {e}", exc_info=True)
         return None
 
-
 # ------------------------------------------------------------------------------
 # POST /api/parse_replay
 # ------------------------------------------------------------------------------
-@app.route('/api/parse_replay', methods=['POST'])
+@flask_app.route('/api/parse_replay', methods=['POST'])
 def parse_new_replay():
     data = request.json
     replay_path = data.get("replay_file")
@@ -177,7 +176,7 @@ def parse_new_replay():
 # ------------------------------------------------------------------------------
 # GET /api/game_stats
 # ------------------------------------------------------------------------------
-@app.route('/api/game_stats', methods=['GET'])
+@flask_app.route('/api/game_stats', methods=['GET'])
 def game_stats():
     all_games = GameStats.query.order_by(GameStats.timestamp.desc()).all()
     results = []
@@ -208,7 +207,7 @@ def game_stats():
 # ------------------------------------------------------------------------------
 # Default Route to Avoid 404 Errors
 # ------------------------------------------------------------------------------
-@app.route("/")
+@flask_app.route("/")
 def home():
     return jsonify({"message": "AoE2 Parsing API is running!"})
 
@@ -217,5 +216,5 @@ def home():
 # ------------------------------------------------------------------------------
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    port = int(os.getenv("PORT", 8002))  # ✅ Dynamic port for Render
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.getenv("PORT", 8000))  # ✅ Ensure correct dynamic port
+    flask_app.run(host="0.0.0.0", port=port)
