@@ -14,7 +14,6 @@
   "dependencies": {
     "@shadcn/ui": "^0.0.4",
     "@types/next-auth": "^3.13.0",
-    "better-sqlite3": "^7.6.2",
     "express-session": "^1.18.1",
     "framer-motion": "^12.4.7",
     "lucide-react": "^0.476.0",
@@ -26,6 +25,7 @@
     "pg": "^8.14.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "sqlite3": "^5.1.7",
     "vercel": "^41.4.1"
   },
   "devDependencies": {

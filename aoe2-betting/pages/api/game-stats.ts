@@ -1,14 +1,10 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { Pool } from "pg";
 
-// Use the correct API base URL
-const API_URL = "https://aoe2de-betting-api.onrender.com/api/game_stats";
-
+// Ensure you use the correct PostgreSQL URL from your environment variables
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // Required for some hosted PostgreSQL services
-  },
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false, // Fixes SSL issues on hosted services like Vercel
 });
 
 // CORS Middleware
@@ -29,28 +25,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (allowCors(req, res)) return;
 
   try {
-    // 🔹 Fetch game stats from the correct API
-    const response = await fetch(API_URL);
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
-    }
+    const client = await pool.connect();
 
-    const apiData = await response.json();
+    // Fetch the latest 10 game stats
+    const result = await client.query(`
+      SELECT id, replay_file, game_version, map, game_type, duration, winner, players, timestamp
+      FROM game_stats
+      ORDER BY timestamp DESC
+      LIMIT 10
+    `);
+    client.release();
 
-    // 🔹 Transform data for frontend
-    const games = apiData.map((game: any) => ({
+    // Transform data for the frontend
+    const games = result.rows.map((game) => ({
       id: game.id,
       replay_file: game.replay_file,
       game_version: game.game_version,
-      map_name: game.map?.name || "Unknown",
+      map_name: game.map || "Unknown",
       game_type: game.game_type,
       game_duration: `${Math.floor(game.duration / 60)} minutes ${game.duration % 60} seconds`,
       winner: game.winner || "Unknown",
-      players: game.players || [],
+      players: game.players ? JSON.parse(game.players) : [],
       timestamp: new Date(game.timestamp).toISOString(),
     }));
 
-    // 🔹 Send processed data to the frontend
     res.status(200).json({ games });
   } catch (error) {
     console.error("❌ Error fetching game stats:", error);
