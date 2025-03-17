@@ -31,20 +31,18 @@ interface GameStats {
   game_version: string;
   map: MapData | string;
   game_type: string;
-  duration: number; // stored as total seconds in your DB
+  duration: number; // total seconds
   players: PlayerStats[];
   timestamp: string;
 }
 
 // --- Helper to clean up "game_type" string ---
 function cleanGameType(rawType: string): string {
-  // Example input: "(<Version.DE: 21>, 'VER 9.4', 63.0, 5, 133431)"
-  // We extract 'VER 9.4'
   const match = rawType.match(/'(VER.*?)'/);
   return match && match[1] ? match[1] : rawType;
 }
 
-// --- Helper to format duration from total seconds to "X hours Y minutes Z seconds" style ---
+// --- Helper to format duration ---
 function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
   const remainder = totalSeconds % 3600;
@@ -78,37 +76,43 @@ const GameStatsPage: React.FC = () => {
   useEffect(() => {
     const fetchGameStats = async (): Promise<void> => {
       try {
-        // Set the correct API URL – note that it already includes /api/game_stats.
-        const API_BASE_URL = "https://aoe2de-betting-api.onrender.com/api/game_stats";
+        // The base URL already includes /api/game_stats
+        const API_BASE_URL =
+          "https://aoe2de-betting-api.onrender.com/api/game_stats";
 
-        // Remove the duplicate endpoint so that the final URL is correct.
-        const response = await fetch(
-          `${API_BASE_URL}?ts=${Date.now()}`,
-          { cache: "no-store" }
-        );
+        // Construct the URL with a timestamp parameter to avoid caching.
+        const response = await fetch(`${API_BASE_URL}?ts=${Date.now()}`, {
+          cache: "no-store",
+        });
 
-        const data = (await response.json()) as { games: GameStats[] };
+        const data = await response.json();
         console.log("🔍 RAW API Response:", data);
 
-        if (!data || !Array.isArray(data.games)) {
+        // Handle both cases: data is an array or an object with a "games" key.
+        let gamesArray: GameStats[] = [];
+        if (Array.isArray(data)) {
+          gamesArray = data;
+        } else if (data && Array.isArray(data.games)) {
+          gamesArray = data.games;
+        } else {
           console.warn("⚠️ No game stats array found in API response.");
           setLoading(false);
           return;
         }
 
-        // Convert fields that might be stored as JSON strings.
-        const formattedGames: GameStats[] = data.games.map((game: GameStats): GameStats => {
+        // Format fields: parse players and map if needed.
+        const formattedGames: GameStats[] = gamesArray.map((game: GameStats) => {
           const safePlayers: PlayerStats[] =
             typeof game.players === "string"
-              ? (JSON.parse(game.players) as PlayerStats[])
+              ? JSON.parse(game.players)
               : game.players;
 
           let safeMap: MapData | string = game.map;
           if (typeof safeMap === "string") {
             try {
-              safeMap = JSON.parse(safeMap) as MapData;
+              safeMap = JSON.parse(safeMap);
             } catch {
-              // Fallback: keep as string.
+              // keep as string if JSON parsing fails
             }
           }
 
@@ -120,8 +124,8 @@ const GameStatsPage: React.FC = () => {
         });
 
         // Filter out games with empty players.
-        const validGames: GameStats[] = formattedGames.filter(
-          (g: GameStats) => g.players && g.players.length > 0
+        const validGames = formattedGames.filter(
+          (g) => g.players && g.players.length > 0
         );
         if (validGames.length === 0) {
           console.warn("⚠️ All parsed games have empty player lists.");
@@ -130,7 +134,7 @@ const GameStatsPage: React.FC = () => {
         }
 
         // Sort games by timestamp (newest first).
-        validGames.sort((a: GameStats, b: GameStats) => {
+        validGames.sort((a, b) => {
           const dateA = new Date(a.timestamp.replace(" ", "T")).valueOf();
           const dateB = new Date(b.timestamp.replace(" ", "T")).valueOf();
           return dateB - dateA;
@@ -145,7 +149,6 @@ const GameStatsPage: React.FC = () => {
     };
 
     fetchGameStats();
-    // Optional: auto-refresh every 3 seconds.
     const interval = setInterval(fetchGameStats, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -162,8 +165,7 @@ const GameStatsPage: React.FC = () => {
         <p className="text-center text-gray-400">No game stats available.</p>
       ) : (
         <div className="space-y-6">
-          {games.map((game: GameStats, index: number) => {
-            // The newest game is index=0 ("Latest Match")
+          {games.map((game, index) => {
             const isLatest = index === 0;
             return (
               <div
@@ -195,7 +197,7 @@ const GameStatsPage: React.FC = () => {
 
                 <h4 className="text-xl font-semibold mt-4">Players</h4>
                 <div className="mt-2 space-y-2">
-                  {game.players.map((player: PlayerStats, idx: number) => (
+                  {game.players.map((player, idx) => (
                     <div
                       key={idx}
                       className={`p-4 rounded-lg ${
@@ -227,7 +229,8 @@ const GameStatsPage: React.FC = () => {
                         <strong>Units Killed:</strong> {player.units_killed}
                       </p>
                       <p>
-                        <strong>Fastest Castle Age:</strong> {player.fastest_castle_age} seconds
+                        <strong>Fastest Castle Age:</strong> {player.fastest_castle_age}{" "}
+                        seconds
                       </p>
                     </div>
                   ))}
