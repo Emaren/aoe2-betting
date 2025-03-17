@@ -16,7 +16,7 @@ from mgz import header, summary
 # ------------------------------------------------------------------------------
 # Flask app & DB setup
 # ------------------------------------------------------------------------------
-flask_app = Flask(__name__)  # ✅ Changed variable name to match Gunicorn
+app = Flask(__name__)  # ✅ Changed variable name to match Gunicorn
 CORS(flask_app, resources={r"/*": {"origins": "*"}})
 
 # Use the correct SQLite database
@@ -216,5 +216,5 @@ def home():
 # ------------------------------------------------------------------------------
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    port = int(os.getenv("PORT", 8000))  # ✅ Ensure correct dynamic port
-    flask_app.run(host="0.0.0.0", port=port)
+    port = int(os.getenv("PORT", 8002))  # ✅ Ensure correct dynamic port
+    app.run(host="0.0.0.0", port=port)
