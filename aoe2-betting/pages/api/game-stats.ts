@@ -3,7 +3,24 @@ import { Pool } from "pg"; // PostgreSQL Connection Pool
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
+// CORS Middleware
+const allowCors = (req: NextApiRequest, res: NextApiResponse) => {
+  res.setHeader("Access-Control-Allow-Origin", "*"); // Allow all origins (Change "*" to restrict access if needed)
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // Handle preflight requests (OPTIONS method)
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return true;
+  }
+  return false;
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Apply CORS middleware
+  if (allowCors(req, res)) return;
+
   try {
     const client = await pool.connect(); // Reuse a single pool connection
     const result = await client.query(`
