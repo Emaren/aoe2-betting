@@ -19,17 +19,10 @@ from mgz import header, summary
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-os.makedirs(os.path.join(BASE_DIR, 'instance'), exist_ok=True)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(BASE_DIR, 'instance', 'game_stats.db')}"
+# Use the correct SQLite database
+DATABASE_PATH = os.path.join(os.path.dirname(__file__), "instance", "game_stats.db")
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DATABASE_PATH}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "pool_size": 10,
-    "max_overflow": 20,
-    "pool_timeout": 30,
-    "pool_recycle": 1800
-}
 
 db = SQLAlchemy(app)
 
@@ -46,7 +39,6 @@ class GameStats(db.Model):
     winner = db.Column(db.String(100))
     players = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, nullable=False)
-
 
 # Ensure tables exist on startup
 with app.app_context():
@@ -85,6 +77,12 @@ def parse_replay(replay_path):
     if not os.path.exists(replay_path):
         logging.error(f"❌ Replay not found: {replay_path}")
         return None
+
+    # If the file is .aoe2record, attempt to parse it
+    if replay_path.endswith(".aoe2record"):
+        new_replay_path = replay_path.replace(".aoe2record", ".mgz")
+        os.rename(replay_path, new_replay_path)
+        replay_path = new_replay_path
 
     try:
         with open(replay_path, "rb") as f:
@@ -132,6 +130,7 @@ def parse_replay(replay_path):
     except Exception as e:
         logging.error(f"❌ Error parsing replay: {e}", exc_info=True)
         return None
+
 
 # ------------------------------------------------------------------------------
 # POST /api/parse_replay

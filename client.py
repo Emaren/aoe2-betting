@@ -2,15 +2,20 @@ import json
 import logging
 import requests
 from parse_replay import parse_replay
-
-# Configure logging (reuse similar settings as in parse_replay.py)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-
-# In client.py
 from config import load_config
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+# Load configuration
 config = load_config()
-API_ENDPOINT = config.get("api_endpoint", "http://your-betting-app.example.com/api/replays")
+
+# ✅ Set the correct Flask API URL (8002)
+API_BASE_URL = config.get("api_endpoint", "http://127.0.0.1:8002")
+
+# Define endpoints
+API_REPLAY_ENDPOINT = f"{API_BASE_URL}/api/replays"
+API_GAME_STATS_ENDPOINT = f"{API_BASE_URL}/api/game_stats".replace("//api", "/api")
 
 
 def send_stats_to_backend(stats):
@@ -19,30 +24,51 @@ def send_stats_to_backend(stats):
     """
     headers = {"Content-Type": "application/json"}
     try:
-        response = requests.post(API_ENDPOINT, json=stats, headers=headers, timeout=10)
+        logging.info(f"📤 Sending stats to backend: {API_REPLAY_ENDPOINT}")
+        response = requests.post(API_REPLAY_ENDPOINT, json=stats, headers=headers, timeout=10)
         response.raise_for_status()
-        logging.info("Successfully sent stats to backend.")
+        logging.info("✅ Successfully sent stats to backend.")
         return True
     except requests.RequestException as e:
-        logging.error(f"Error sending stats: {e}")
+        logging.error(f"❌ Error sending stats: {e}")
         return False
+
+def fetch_game_stats():
+    """
+    Fetches the latest game stats from the backend.
+    """
+    try:
+        logging.info(f"📥 Fetching game stats from: {API_GAME_STATS_ENDPOINT}")
+        response = requests.get(API_GAME_STATS_ENDPOINT, timeout=10)
+        response.raise_for_status()
+        game_stats = response.json()
+        logging.info(f"✅ Fetched {len(game_stats)} game stats entries.")
+        return game_stats
+    except requests.RequestException as e:
+        logging.error(f"❌ Error fetching game stats: {e}")
+        return []
 
 def process_replay(replay_path):
     """
     Process a replay file: parse it and send its data to the backend.
     """
-    logging.info(f"Processing replay: {replay_path}")
+    logging.info(f"🔍 Processing replay: {replay_path}")
     stats = parse_replay(replay_path)
+
     if stats is None:
-        logging.error("Parsing failed, skipping backend submission.")
+        logging.error("❌ Parsing failed, skipping backend submission.")
         return False
+
     return send_stats_to_backend(stats)
 
 if __name__ == '__main__':
-    # For testing, you can supply a replay file path via command line, for example:
     import sys
+
     if len(sys.argv) > 1:
         replay_file = sys.argv[1]
         process_replay(replay_file)
     else:
-        logging.info("No replay file provided for testing.")
+        logging.info("⚠️ No replay file provided for testing.")
+        logging.info("Fetching latest game stats instead...")
+        game_stats = fetch_game_stats()
+        logging.info(json.dumps(game_stats, indent=2))

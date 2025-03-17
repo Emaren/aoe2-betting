@@ -3,7 +3,7 @@
       "/Users/tonyblum/Library/Application Support/CrossOver/Bottles/Steam/drive_c/users/crossover/Games/Age of Empires 2 DE/76561198065420384/SaveGame",
       "/Users/tonyblum/Library/Application Support/CrossOver/Bottles/Steam/drive_c/users/crossover/Games/Age of Empires 2 DE/0/SaveGame"
     ],
-    "api_endpoint": "http://localhost:5001/api/replays",
+    "api_endpoint": "https://aoe2de-parsing-1.onrender.com/api/parse_replay",
     "polling_interval": 1,
     "use_polling": true,
     "logging_level": "INFO"

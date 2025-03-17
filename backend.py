@@ -107,6 +107,7 @@ def get_game_stats():
     except Exception as e:
         return {"error": str(e)}
 
+
 # Flask Endpoint for Receiving Replays
 @flask_app.route('/api/replays', methods=['POST'])
 def receive_replay():
