@@ -76,19 +76,27 @@ const GameStatsPage: React.FC = () => {
   useEffect(() => {
     const fetchGameStats = async (): Promise<void> => {
       try {
-        // The base URL already includes /api/game_stats
-        const API_BASE_URL =
-          "https://aoe2de-betting-api.onrender.com/api/game_stats";
+        // Check if running locally by hostname.
+        const isLocal =
+          typeof window !== "undefined" &&
+          (window.location.hostname === "localhost" ||
+            window.location.hostname === "127.0.0.1");
 
-        // Construct the URL with a timestamp parameter to avoid caching.
+        // Use local URL when testing locally; in production use the env variable.
+        const localURL = "http://127.0.0.1:8000/api/game_stats";
+        const prodURL =
+          process.env.NEXT_PUBLIC_API_ENDPOINT ||
+          "https://aoe2de-betting-api.onrender.com/api/game_stats";
+        const API_BASE_URL = isLocal ? localURL : prodURL;
+
+        console.log("API_BASE_URL:", API_BASE_URL);
+
         const response = await fetch(`${API_BASE_URL}?ts=${Date.now()}`, {
           cache: "no-store",
         });
-
         const data = await response.json();
         console.log("🔍 RAW API Response:", data);
 
-        // Handle both cases: data is an array or an object with a "games" key.
         let gamesArray: GameStats[] = [];
         if (Array.isArray(data)) {
           gamesArray = data;
@@ -100,7 +108,6 @@ const GameStatsPage: React.FC = () => {
           return;
         }
 
-        // Format fields: parse players and map if needed.
         const formattedGames: GameStats[] = gamesArray.map((game: GameStats) => {
           const safePlayers: PlayerStats[] =
             typeof game.players === "string"
@@ -112,18 +119,13 @@ const GameStatsPage: React.FC = () => {
             try {
               safeMap = JSON.parse(safeMap);
             } catch {
-              // keep as string if JSON parsing fails
+              // Keep as string if parsing fails.
             }
           }
 
-          return {
-            ...game,
-            players: safePlayers,
-            map: safeMap,
-          };
+          return { ...game, players: safePlayers, map: safeMap };
         });
 
-        // Filter out games with empty players.
         const validGames = formattedGames.filter(
           (g) => g.players && g.players.length > 0
         );
@@ -133,7 +135,7 @@ const GameStatsPage: React.FC = () => {
           return;
         }
 
-        // Sort games by timestamp (newest first).
+        // Sort games by timestamp (newest first)
         validGames.sort((a, b) => {
           const dateA = new Date(a.timestamp.replace(" ", "T")).valueOf();
           const dateB = new Date(b.timestamp.replace(" ", "T")).valueOf();
@@ -229,8 +231,7 @@ const GameStatsPage: React.FC = () => {
                         <strong>Units Killed:</strong> {player.units_killed}
                       </p>
                       <p>
-                        <strong>Fastest Castle Age:</strong> {player.fastest_castle_age}{" "}
-                        seconds
+                        <strong>Fastest Castle Age:</strong> {player.fastest_castle_age} seconds
                       </p>
                     </div>
                   ))}
