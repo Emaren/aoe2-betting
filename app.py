@@ -89,13 +89,8 @@ def compute_replay_hash(replay_path):
 # ------------------------------------------------------------------------------
 # Replay Parsing Function
 # ------------------------------------------------------------------------------
-def parse_replay(replay_path: str):
-    logging.info(f"🔍 Attempting to parse: {replay_path}")
-
-    if not os.path.exists(replay_path):
-        logging.error(f"❌ Replay file not found: {replay_path}")
-        return None
-
+def parse_replay(replay_path):
+    logging.info(f"🔍 Parsing replay: {replay_path}")
     try:
         with open(replay_path, "rb") as f:
             h = header.parse_stream(f)
@@ -103,41 +98,44 @@ def parse_replay(replay_path: str):
             match_summary = summary.Summary(f)
 
             duration_seconds = int(match_summary.get_duration() / 1000)
-            logging.info(f"✅ Replay duration: {duration_seconds}s")
-
-            # Convert game_type to string to ensure it's a supported type
-            game_type_raw = match_summary.get_settings().get("type", "Unknown")
-            game_type = str(game_type_raw)
+            settings = match_summary.get_settings()
 
             stats = {
                 "replay_file": os.path.basename(replay_path),
                 "game_version": str(h.version),
                 "map_name": match_summary.get_map().get("name", "Unknown"),
                 "map_size": match_summary.get_map().get("size", "Unknown"),
-                "game_type": game_type,
+                "game_type": settings.get("type")[1] if isinstance(settings.get("type"), tuple) else str(settings.get("type")),
                 "duration": duration_seconds,
-                "players": [],
-                "winner": "Unknown",
                 "timestamp": extract_timestamp_from_filename(replay_path),
                 "hash": compute_replay_hash(replay_path),
+                "players": [],
+                "winner": "Unknown"
             }
 
-            logging.info(f"🔍 Parsed Replay Data: {stats}")
-
             for p in match_summary.get_players():
-                player_info = {
+                achievements = p.get("achievements", {})
+                stats["players"].append({
                     "name": p.get("name", "Unknown"),
                     "winner": p.get("winner", False),
-                }
-                stats["players"].append(player_info)
-                if player_info["winner"]:
-                    stats["winner"] = player_info["name"]
+                    "civilization": p.get("civilization", -1),
+                    "military_score": achievements.get("military", {}).get("score", 0),
+                    "economy_score": achievements.get("economy", {}).get("score", 0),
+                    "technology_score": achievements.get("technology", {}).get("score", 0),
+                    "society_score": achievements.get("society", {}).get("score", 0),
+                    "units_killed": achievements.get("military", {}).get("units_killed", 0),
+                    "fastest_castle_age": achievements.get("technology", {}).get("castle_time", 0)
+                })
+
+                if p.get("winner", False):
+                    stats["winner"] = p.get("name", "Unknown")
 
             return stats
-
     except Exception as e:
-        logging.error(f"❌ Replay parse failed: {e}", exc_info=True)
+        logging.error(f"❌ Failed to parse replay: {e}", exc_info=True)
         return None
+
+
 
 # ------------------------------------------------------------------------------
 # POST /api/parse_replay
@@ -199,32 +197,58 @@ def parse_new_replay():
 # ------------------------------------------------------------------------------
 # GET /api/game_stats
 # ------------------------------------------------------------------------------
+# GET /api/game_stats
 @app.route("/api/game_stats", methods=["GET"])
 def get_game_stats():
     try:
-        all_games = GameStats.query.order_by(GameStats.timestamp.desc()).all()
+        games = GameStats.query.order_by(GameStats.timestamp.desc()).limit(10).all()
         results = []
-        for game in all_games:
-            try:
-                player_data = json.loads(game.players) if game.players else []
-            except json.JSONDecodeError:
-                player_data = []
+
+        for game in games:
+            players = json.loads(game.players or "[]")
+            formatted_players = []
+            for player in players:
+                formatted_player = {
+                    "name": player.get("name", "Unknown"),
+                    "civilization": player.get("civilization", -1),
+                    "winner": player.get("winner", False),
+                    "military_score": player.get("military_score", 0),
+                    "economy_score": player.get("economy_score", 0),
+                    "technology_score": player.get("technology_score", 0),
+                    "society_score": player.get("society_score", 0),
+                    "units_killed": player.get("units_killed", 0),
+                    "fastest_castle_age": player.get("fastest_castle_age", 0),
+                    "resources_gathered": player.get("resources_gathered", 0),
+                }
+                formatted_players.append(formatted_player)
+
             results.append({
                 "id": game.id,
+                "replay_file": game.replay_file,
                 "game_version": game.game_version,
-                "map_name": game.map_name,
-                "map_size": game.map_size,
+                "map": {
+                    "name": game.map_name or "Unknown",
+                    "size": game.map_size or "Unknown",
+                },
                 "game_type": game.game_type,
                 "duration": game.duration,
                 "winner": game.winner,
-                "players": player_data,
-                "timestamp": str(game.timestamp),
+                "players": formatted_players,
+                "timestamp": game.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
                 "hash": game.hash,
             })
+
         return jsonify({"games": results})
+
     except SQLAlchemyError as e:
-        logging.error(f"❌ Error fetching from DB: {e}")
-        return jsonify({"error": "Database Fetch Error"}), 500
+        logging.error(f"❌ Error fetching game stats: {e}")
+        return jsonify({"error": "Database error"}), 500
+
+
+
+
+
+
 
 # ------------------------------------------------------------------------------
 # Additional Routes

@@ -27,27 +27,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const client = await pool.connect();
 
-    // Fetch the latest 10 game stats
     const result = await client.query(`
-      SELECT id, replay_file, game_version, map, game_type, duration, winner, players, timestamp
+      SELECT id, replay_file, game_version, map_name, map_size, game_type, duration, winner, players, timestamp
       FROM game_stats
       ORDER BY timestamp DESC
       LIMIT 10
     `);
     client.release();
 
-    // Transform data for the frontend
-    const games = result.rows.map((game) => ({
-      id: game.id,
-      replay_file: game.replay_file,
-      game_version: game.game_version,
-      map_name: game.map || "Unknown",
-      game_type: game.game_type,
-      game_duration: `${Math.floor(game.duration / 60)} minutes ${game.duration % 60} seconds`,
-      winner: game.winner || "Unknown",
-      players: game.players ? JSON.parse(game.players) : [],
-      timestamp: new Date(game.timestamp).toISOString(),
-    }));
+    const games = result.rows.map((game) => {
+      let playersParsed;
+      try {
+        playersParsed = JSON.parse(game.players);
+      } catch (err) {
+        playersParsed = [];
+      }
+
+      return {
+        id: game.id,
+        replay_file: game.replay_file,
+        game_version: game.game_version,
+        map: {
+          name: game.map_name || "Unknown",
+          size: game.map_size || "Unknown",
+        },
+        game_type: game.game_type,
+        duration: game.duration,
+        winner: game.winner,
+        players: playersParsed,
+        timestamp: new Date(game.timestamp).toISOString(),
+      };
+    });
 
     res.status(200).json({ games });
   } catch (error) {
@@ -55,3 +65,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ error: "Internal Server Error" });
   }
 }
+

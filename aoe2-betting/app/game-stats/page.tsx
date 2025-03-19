@@ -108,23 +108,37 @@ const GameStatsPage: React.FC = () => {
           return;
         }
 
-        const formattedGames: GameStats[] = gamesArray.map((game: GameStats) => {
-          const safePlayers: PlayerStats[] =
-            typeof game.players === "string"
-              ? JSON.parse(game.players)
-              : game.players;
-
-          let safeMap: MapData | string = game.map;
-          if (typeof safeMap === "string") {
-            try {
-              safeMap = JSON.parse(safeMap);
-            } catch {
-              // Keep as string if parsing fails.
-            }
-          }
-
-          return { ...game, players: safePlayers, map: safeMap };
+        const formattedGames: GameStats[] = gamesArray.map((game: any) => {
+          const safePlayers: PlayerStats[] = (game.players || []).map((player: any) => ({
+            name: player.name || "Unknown",
+            civilization: player.civilization || -1,
+            winner: player.winner ?? false,
+            military_score: player.military_score ?? 0,
+            economy_score: player.economy_score ?? 0,
+            technology_score: player.technology_score ?? 0,
+            society_score: player.society_score ?? 0,
+            units_killed: player.units_killed ?? 0,
+            buildings_destroyed: player.buildings_destroyed ?? 0,
+            resources_gathered: player.resources_gathered ?? 0,
+            fastest_castle_age: player.fastest_castle_age ?? 0,
+            fastest_imperial_age: player.fastest_imperial_age ?? 0,
+            relics_collected: player.relics_collected ?? 0,
+          }));
+        
+          const safeMap: MapData = {
+            name: game.map?.name || game.map_name || "Unknown",
+            size: game.map?.size || "Unknown",
+          };
+        
+          return {
+            ...game,
+            players: safePlayers,
+            map: safeMap,
+          };
         });
+        
+        
+        
 
         const validGames = formattedGames.filter(
           (g) => g.players && g.players.length > 0

@@ -1,3 +1,4 @@
+import re
 import requests
 import os
 import platform
@@ -22,11 +23,9 @@ polling_interval = config.get("polling_interval", 1)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-# We track which replays we've already processed to avoid duplicates
 PROCESSED_REPLAYS_FILE = "processed_replays.json"
 processed_replays = {}
 
-# Example AoE2 HD & DE default directories (macOS example shown; adapt if needed)
 AOE2HD_REPLAY_DIR = (
     "/Users/tonyblum/Library/Application Support/CrossOver/Bottles/Steam/"
     "drive_c/Program Files (x86)/Steam/steamapps/common/Age2HD/SaveGame/multi"
@@ -37,87 +36,58 @@ AOE2DE_REPLAY_DIR = os.path.expanduser("~/Documents/My Games/Age of Empires 2 DE
 # HELPER FUNCTIONS
 # ---------------------------------------------------------------------------------------
 def load_processed_replays():
-    """Load JSON of previously processed replays into a global dict."""
     global processed_replays
     try:
-        with open(PROCESSED_REPLAYS_FILE, "r") as f:
+        with open("processed_replays.json", "r") as f:
             processed_replays = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         processed_replays = {}
 
 def save_processed_replays():
-    """Persist the global processed_replays dict to JSON."""
-    with open(PROCESSED_REPLAYS_FILE, "w") as f:
+    with open("processed_replays.json", "w") as f:
         json.dump(processed_replays, f, indent=4)
 
 def compute_replay_hash(file_path):
-    """
-    Computes a SHA-256 hash of the entire .aoe2record file.
-    This ensures uniqueness on the server side for deduplication.
-    """
     hasher = hashlib.sha256()
-    try:
-        with open(file_path, "rb") as f:
-            # Read in chunks to avoid huge memory usage on large files
-            chunk = f.read(8192)
-            while chunk:
-                hasher.update(chunk)
-                chunk = f.read(8192)
-        return hasher.hexdigest()
-    except Exception as e:
-        logging.error(f"❌ Error computing hash for {file_path}: {e}")
-        return None
+    with open(file_path, "rb") as f:
+        while chunk := f.read(8192):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
+# Ensures the server parses replay details thoroughly
 def parse_replay(file_path):
-    """
-    Call the parse_replay API endpoint to parse & store the replay in the DB.
-    This now includes the computed replay hash in the JSON payload.
-    """
     if file_path in processed_replays:
         logging.info(f"⚠️ Replay already processed: {file_path}")
         return
 
-    logging.info(f"✅ Attempting to parse new replay: {file_path}")
-
     replay_hash = compute_replay_hash(file_path)
     if not replay_hash:
-        logging.error(f"❌ Failed to compute replay hash for {file_path}. Skipping.")
+        logging.error(f"❌ Failed to compute replay hash for {file_path}")
         processed_replays[file_path] = {"status": "hash_error"}
         save_processed_replays()
         return
 
     api_url = "http://localhost:8000/api/parse_replay"
-    payload = {
-        "replay_file": file_path,
-        "hash": replay_hash  # ← Added so the server sees the hash
-    }
+    payload = {"replay_file": file_path, "hash": replay_hash}
 
     try:
-        # Extended timeout to handle large/slow parse
         response = requests.post(api_url, json=payload, timeout=120)
-        if response.status_code == 200:
-            logging.info(f"✅ Successfully parsed and stored replay: {file_path}")
-        else:
-            logging.error(f"❌ API Error ({response.status_code}): {response.json()}")
-    except Exception as e:
-        logging.error(f"❌ Error calling parse endpoint for {file_path}: {e}")
+        response.raise_for_status()
+        logging.info(f"✅ Successfully sent replay for parsing: {file_path}")
+    except requests.RequestException as e:
+        logging.error(f"❌ Error sending replay: {e}")
 
-    # Mark as processed to avoid repeated attempts
     processed_replays[file_path] = {"status": "processed"}
     save_processed_replays()
 
 def wait_for_stable_file(file_path, stable_seconds=30, verification_seconds=20):
-    """
-    Ensures the file is stable by checking twice before parsing.
-    """
     last_size = -1
     stable_time = 0
     check_interval = 1
 
-    # First Stability Check
     while stable_time < stable_seconds:
         if not os.path.exists(file_path):
-            logging.warning(f"⚠️ File disappeared before parsing: {file_path}")
+            logging.warning(f"⚠️ File disappeared: {file_path}")
             return
 
         current_size = os.path.getsize(file_path)
@@ -126,43 +96,29 @@ def wait_for_stable_file(file_path, stable_seconds=30, verification_seconds=20):
         else:
             stable_time = 0
             last_size = current_size
-
         time.sleep(check_interval)
 
-    logging.info(f"🕒 Initial stability detected for file: {file_path}. Verifying again...")
-
-    # Verification Phase
     time.sleep(verification_seconds)
-    new_size = os.path.getsize(file_path)
-    if new_size == last_size:
-        logging.info(f"✅ File confirmed stable, parsing now: {file_path}")
+    if os.path.getsize(file_path) == last_size:
         parse_replay(file_path)
     else:
-        logging.warning("⚠️ File size changed after verification. Restarting stability check.")
-        wait_for_stable_file(file_path, stable_seconds)
+        logging.warning(f"⚠️ File size changed again: {file_path}")
+        wait_for_stable_file(file_path)
 
-# ---------------------------------------------------------------------------------------
-# SINGLE-THREADED QUEUE TO LIMIT CONCURRENCY
-# ---------------------------------------------------------------------------------------
+# Queue setup
 parse_queue = Queue()
-
 def parse_worker():
-    """Thread worker that processes stable-file tasks one by one."""
     while True:
         file_path = parse_queue.get()
-        if file_path is None:  # Stop signal
+        if file_path is None:
             break
-        wait_for_stable_file(file_path, stable_seconds=60)
+        wait_for_stable_file(file_path)
         parse_queue.task_done()
 
 worker_thread = threading.Thread(target=parse_worker, daemon=True)
 worker_thread.start()
 
-# ---------------------------------------------------------------------------------------
 # WATCHDOG EVENT HANDLER
-# ---------------------------------------------------------------------------------------
-import re
-
 class ReplayEventHandler(FileSystemEventHandler):
     FINAL_REPLAY_REGEX = re.compile(
         r"MP Replay v.* @\d{4}\.\d{2}\.\d{2} \d{6}(?: \(\d+\))?\.aoe2record$"
@@ -171,82 +127,30 @@ class ReplayEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory:
             return
-        filename = os.path.basename(event.src_path)
-        if self.FINAL_REPLAY_REGEX.match(filename):
+        if self.FINAL_REPLAY_REGEX.match(os.path.basename(event.src_path)):
             logging.info(f"🆕 Final Replay Detected: {event.src_path}")
             parse_queue.put(event.src_path)
-        else:
-            logging.info(f"⏳ Ignoring temporary file: {event.src_path}")
 
-# ---------------------------------------------------------------------------------------
-# AUTO-DETECT POTENTIAL DIRECTORIES
-# ---------------------------------------------------------------------------------------
-def get_possible_directories():
-    """Auto-detect likely AoE2 replay directories based on OS."""
-    dirs = []
-    system = platform.system()
-    home = os.path.expanduser("~")
-
-    if system == "Windows":
-        userprofile = os.environ.get("USERPROFILE", "")
-        dirs += [
-            os.path.join(userprofile, "Documents", "My Games", "Age of Empires 2 HD", "SaveGame"),
-            os.path.join(userprofile, "Documents", "My Games", "Age of Empires 2 DE", "SaveGame"),
-            r"C:\GOG Games\Age of Empires II HD\SaveGame",
-            r"C:\Age of Empires 2 HD\SaveGame",
-            r"D:\Games\Age of Empires II HD\SaveGame",
-        ]
-    elif system == "Darwin":  # macOS
-        dirs.append(AOE2HD_REPLAY_DIR)
-        dirs.append(AOE2DE_REPLAY_DIR)
-    elif system == "Linux":
-        dirs += [
-            os.path.join(home, ".wine", "drive_c", "Program Files (x86)", "Microsoft Games",
-                         "Age of Empires II HD", "SaveGame"),
-            os.path.join(home, ".wine", "drive_c", "Program Files", "Age of Empires II HD", "SaveGame"),
-            os.path.join(home, "Documents", "My Games", "Age of Empires 2 HD", "SaveGame"),
-            os.path.join(home, "Documents", "My Games", "Age of Empires 2 DE", "SaveGame"),
-        ]
-
-    return [d for d in dirs if os.path.isdir(d)]
-
-# ---------------------------------------------------------------------------------------
 # MAIN WATCH FUNCTION
-# ---------------------------------------------------------------------------------------
 def watch_replay_directories(directories, use_polling=True, interval=1):
-    """
-    Watches AoE2 HD & DE replay directories for new game files.
-    On creation of an .aoe2record, we queue a parse task to the parse_worker thread.
-    """
     load_processed_replays()
     observer = PollingObserver() if use_polling else Observer()
 
     for directory in directories:
         if os.path.exists(directory):
-            logging.info(f"👀 Watching directory: {directory}")
             observer.schedule(ReplayEventHandler(), directory, recursive=False)
-        else:
-            logging.warning(f"⚠️ Directory not found: {directory}")
+            logging.info(f"👀 Watching: {directory}")
 
     observer.start()
     try:
         while True:
             time.sleep(interval)
     except KeyboardInterrupt:
-        logging.info("🛑 Stopping watcher.")
         observer.stop()
     observer.join()
 
 if __name__ == '__main__':
-    logging.info("📌 Watching AoE2 HD & DE Replay Directories...")
-
-    if config_dirs:
-        possible_dirs = config_dirs
-    else:
-        possible_dirs = get_possible_directories()
-
-    watch_replay_directories(possible_dirs, use_polling=use_polling, interval=polling_interval)
-
-    # If the script is interrupted, gracefully stop the parse queue:
+    dirs = config_dirs or [AOE2HD_REPLAY_DIR, AOE2DE_REPLAY_DIR]
+    watch_replay_directories(directories=dirs, use_polling=use_polling, interval=polling_interval)
     parse_queue.put(None)
     worker_thread.join()
