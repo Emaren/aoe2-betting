@@ -10,11 +10,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 # Load configuration from config.json
 config = load_config()
 
-# Set the API base URL (for production, this might be your deployed endpoint)
-# For example: "https://aoe2de-betting-api.onrender.com"
-API_BASE_URL = config.get("api_endpoint", "http://127.0.0.1:8002")
+# Use the API endpoint from your config.
+# For local development, you might use "http://127.0.0.1:8000"
+# For production, your config should have: "https://aoe2de-betting-api.onrender.com"
+API_BASE_URL = config.get("api_endpoint", "http://127.0.0.1:8000")
 
-# Define endpoints without duplicating paths
+# Define endpoints by appending the resource paths.
+# With API_BASE_URL set to "https://aoe2de-betting-api.onrender.com", these become:
+# - https://aoe2de-betting-api.onrender.com/api/replays
+# - https://aoe2de-betting-api.onrender.com/api/game_stats
 API_REPLAY_ENDPOINT = f"{API_BASE_URL}/api/replays"
 API_GAME_STATS_ENDPOINT = f"{API_BASE_URL}/api/game_stats"
 
@@ -46,7 +50,7 @@ def fetch_game_stats():
         logging.info("🔍 RAW API Response: %s", data)
 
         # Determine if the response is an array or an object with a "games" key.
-        let game_stats = []
+        game_stats = []
         if isinstance(data, list):
             game_stats = data
         elif isinstance(data, dict) and "games" in data:

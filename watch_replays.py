@@ -5,6 +5,7 @@ import time
 import logging
 import json
 import threading
+import hashlib
 from queue import Queue
 from watchdog.observers.polling import PollingObserver
 from watchdog.observers import Observer
@@ -25,10 +26,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 PROCESSED_REPLAYS_FILE = "processed_replays.json"
 processed_replays = {}
 
-# AoE2 HD & DE default directories (macOS example shown; adapt if needed)
+# Example AoE2 HD & DE default directories (macOS example shown; adapt if needed)
 AOE2HD_REPLAY_DIR = (
-    "/Users/tonyblum/Library/Application Support/CrossOver/Bottles/Steam/drive_c/"
-    "Program Files (x86)/Steam/steamapps/common/Age2HD/SaveGame/multi"
+    "/Users/tonyblum/Library/Application Support/CrossOver/Bottles/Steam/"
+    "drive_c/Program Files (x86)/Steam/steamapps/common/Age2HD/SaveGame/multi"
 )
 AOE2DE_REPLAY_DIR = os.path.expanduser("~/Documents/My Games/Age of Empires 2 DE/SaveGame")
 
@@ -49,10 +50,28 @@ def save_processed_replays():
     with open(PROCESSED_REPLAYS_FILE, "w") as f:
         json.dump(processed_replays, f, indent=4)
 
+def compute_replay_hash(file_path):
+    """
+    Computes a SHA-256 hash of the entire .aoe2record file.
+    This ensures uniqueness on the server side for deduplication.
+    """
+    hasher = hashlib.sha256()
+    try:
+        with open(file_path, "rb") as f:
+            # Read in chunks to avoid huge memory usage on large files
+            chunk = f.read(8192)
+            while chunk:
+                hasher.update(chunk)
+                chunk = f.read(8192)
+        return hasher.hexdigest()
+    except Exception as e:
+        logging.error(f"❌ Error computing hash for {file_path}: {e}")
+        return None
+
 def parse_replay(file_path):
     """
     Call the parse_replay API endpoint to parse & store the replay in the DB.
-    Mark the file as processed on success or error (so we don't retry infinitely).
+    This now includes the computed replay hash in the JSON payload.
     """
     if file_path in processed_replays:
         logging.info(f"⚠️ Replay already processed: {file_path}")
@@ -60,10 +79,22 @@ def parse_replay(file_path):
 
     logging.info(f"✅ Attempting to parse new replay: {file_path}")
 
-    api_url = "http://localhost:8002/api/parse_replay"
+    replay_hash = compute_replay_hash(file_path)
+    if not replay_hash:
+        logging.error(f"❌ Failed to compute replay hash for {file_path}. Skipping.")
+        processed_replays[file_path] = {"status": "hash_error"}
+        save_processed_replays()
+        return
+
+    api_url = "http://localhost:8000/api/parse_replay"
+    payload = {
+        "replay_file": file_path,
+        "hash": replay_hash  # ← Added so the server sees the hash
+    }
+
     try:
         # Extended timeout to handle large/slow parse
-        response = requests.post(api_url, json={"replay_file": file_path}, timeout=120)
+        response = requests.post(api_url, json=payload, timeout=120)
         if response.status_code == 200:
             logging.info(f"✅ Successfully parsed and stored replay: {file_path}")
         else:
@@ -94,27 +125,25 @@ def wait_for_stable_file(file_path, stable_seconds=30, verification_seconds=20):
             stable_time += check_interval
         else:
             stable_time = 0
-            last_size = current_size = os.path.getsize(file_path)
+            last_size = current_size
 
         time.sleep(check_interval)
 
     logging.info(f"🕒 Initial stability detected for file: {file_path}. Verifying again...")
 
     # Verification Phase
-    time.sleep(20)  # Wait extra time for certainty
+    time.sleep(verification_seconds)
     new_size = os.path.getsize(file_path)
     if new_size == last_size:
         logging.info(f"✅ File confirmed stable, parsing now: {file_path}")
         parse_replay(file_path)
     else:
-        logging.warning(f"⚠️ File size changed after verification. Restarting stability check.")
+        logging.warning("⚠️ File size changed after verification. Restarting stability check.")
         wait_for_stable_file(file_path, stable_seconds)
 
 # ---------------------------------------------------------------------------------------
 # SINGLE-THREADED QUEUE TO LIMIT CONCURRENCY
 # ---------------------------------------------------------------------------------------
-# We use a single background worker thread that processes tasks in FIFO order,
-# ensuring only one parse is done at a time.
 parse_queue = Queue()
 
 def parse_worker():
@@ -126,7 +155,6 @@ def parse_worker():
         wait_for_stable_file(file_path, stable_seconds=60)
         parse_queue.task_done()
 
-# Start the parse worker in the background
 worker_thread = threading.Thread(target=parse_worker, daemon=True)
 worker_thread.start()
 
@@ -137,9 +165,8 @@ import re
 
 class ReplayEventHandler(FileSystemEventHandler):
     FINAL_REPLAY_REGEX = re.compile(
-    r"MP Replay v.* @\d{4}\.\d{2}\.\d{2} \d{6}(?: \(\d+\))?\.aoe2record$"
+        r"MP Replay v.* @\d{4}\.\d{2}\.\d{2} \d{6}(?: \(\d+\))?\.aoe2record$"
     )
-
 
     def on_created(self, event):
         if event.is_directory:
@@ -150,14 +177,6 @@ class ReplayEventHandler(FileSystemEventHandler):
             parse_queue.put(event.src_path)
         else:
             logging.info(f"⏳ Ignoring temporary file: {event.src_path}")
-
-    # If you really want to parse on each modification, uncomment below:
-    # def on_modified(self, event):
-    #     if event.is_directory:
-    #         return
-    #     if event.src_path.endswith(".aoe2record") or event.src_path.endswith(".aoe2mpgame"):
-    #         logging.info(f"✍️ Replay Modified: {event.src_path}")
-    #         parse_queue.put(event.src_path)
 
 # ---------------------------------------------------------------------------------------
 # AUTO-DETECT POTENTIAL DIRECTORIES
@@ -218,9 +237,6 @@ def watch_replay_directories(directories, use_polling=True, interval=1):
         observer.stop()
     observer.join()
 
-# ---------------------------------------------------------------------------------------
-# ENTRY POINT
-# ---------------------------------------------------------------------------------------
 if __name__ == '__main__':
     logging.info("📌 Watching AoE2 HD & DE Replay Directories...")
 
