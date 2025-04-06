@@ -26,31 +26,31 @@ module.exports = withPWA({
         source: '/api/game_stats',
         destination: isDocker
           ? 'http://aoe2-backend:8002/api/game_stats'
-          : `${FALLBACK_API}/api/game_stats`, // ✅ hard fallback here
+          : `${API_BASE}/api/game_stats`,
       },
       {
         source: '/admin/users',
         destination: isDocker
           ? 'http://aoe2-backend:8002/admin/users'
-          : `${FALLBACK_API}/admin/users`,
+          : `${API_BASE}/admin/users`,
       },
       {
         source: '/api/parse_replay',
         destination: isDocker
           ? 'http://aoe2-backend:8002/api/parse_replay'
-          : `${FALLBACK_API}/api/parse_replay`,
+          : `${API_BASE}/api/parse_replay`,
       },
       {
         source: '/api/user/me',
         destination: isDocker
           ? 'http://aoe2-backend:8002/api/user/me'
-          : `${FALLBACK_API}/api/user/me`,
+          : `${API_BASE}/api/user/me`,
       },
       {
         source: '/api/user/update_name',
         destination: isDocker
           ? 'http://aoe2-backend:8002/api/user/update_name'
-          : `${FALLBACK_API}/api/user/update_name`,
+          : `${API_BASE}/api/user/update_name`,
       },
     ];
   },
