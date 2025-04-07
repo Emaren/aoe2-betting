@@ -6,7 +6,10 @@ const withPWA = require("next-pwa")({
 
 const isDocker = process.env.DOCKER === 'true';
 const FALLBACK_API = "https://aoe2hd-parser-api.onrender.com";
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || FALLBACK_API;
+const API_BASE = isDocker
+  ? "http://aoe2-backend:8002"
+  : process.env.NEXT_PUBLIC_API_BASE_URL || FALLBACK_API;
+
 
 module.exports = withPWA({
   reactStrictMode: true,

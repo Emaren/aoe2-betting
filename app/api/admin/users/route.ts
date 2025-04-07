@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const res = await fetch("http://localhost:8002/api/admin/users", {
-    headers: {
-      Authorization: "Bearer secretadmin",
-    },
-  });
+  try {
+    const res = await fetch(`${process.env.BACKEND_API}/api/admin/users`, {
+      headers: {
+        Authorization: "Bearer secretadmin",
+      },
+    });
 
-  if (!res.ok) {
-    const text = await res.text();
-    return new Response(`API error ${res.status}: ${text}`, { status: res.status });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`API error ${res.status}: ${text}`);
+    }
+
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error("🔥 Backend fetch failed:", err);
+    return new Response("Internal error", { status: 500 });
   }
-
-  const data = await res.json();
-  return NextResponse.json(data);
 }
+
