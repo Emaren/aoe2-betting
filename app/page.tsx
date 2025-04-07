@@ -134,7 +134,7 @@ export default function MainPage() {
           <CardContent className="p-8 flex flex-col space-y-6">
             <h1 className="text-xl font-bold text-center">Welcome to AoE2HD Betting App</h1>
             <p className="text-gray-300 text-center">
-              Enter your in-game name to start betting:
+              Enter your in-game name to start betting::
             </p>
             <Input
               className="text-black px-4 py-3 text-lg rounded-md"
@@ -160,7 +160,7 @@ export default function MainPage() {
           onClick={() => setMenuOpen(!menuOpen)}
         >
           <UserCircle className="w-6 h-6" />
-          My Accountt
+          My Accounttt
         </button>
         {menuOpen && (
           <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg overflow-hidden">

@@ -29,10 +29,10 @@ module.exports = withPWA({
           : `${API_BASE}/api/game_stats`,
       },
       {
-        source: '/admin/users',
+        source: '/api/admin/users',
         destination: isDocker
-          ? 'http://aoe2-backend:8002/admin/users'
-          : `${API_BASE}/admin/users`,
+          ? 'http://aoe2-backend:8002/api/admin/users' // ✅ fixed to include `/api`
+          : `${API_BASE}/api/admin/users`,
       },
       {
         source: '/api/parse_replay',
