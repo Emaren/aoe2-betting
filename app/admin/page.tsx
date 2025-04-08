@@ -11,13 +11,15 @@ export default function AdminPage() {
     setError('');
     try {
       const res = await fetch('http://localhost:8002/admin/users', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        setError("Unauthorized or invalid admin token");
+        return;
+      }
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-      }
+      }      
       const data = await res.json();
       setUsers(data);
     } catch (err: any) {
