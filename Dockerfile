@@ -10,9 +10,6 @@ ENV PYTHONPATH="/app"
 # Copy source code into container
 COPY . /app
 
-# Debug check (optional)
-RUN ls /app/mgz_hd
-
 # Install PostgreSQL client, pip, and dependencies
 RUN apt-get update && \
     apt-get install -y postgresql-client && \
