@@ -129,7 +129,7 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Profile</h1>
+      <h1 className="text-3xl font-bold mb-6">Profiley</h1>
       <p className="mb-4">Manage your account details and preferences here..</p>
 
       <div className="mb-6">
