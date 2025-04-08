@@ -46,7 +46,7 @@ export default function UsersPage() {
         <thead>
           <tr className="bg-gray-900">
             <th className="border px-4 py-2">UID</th>
-            <th className="border px-4 py-2">Email qq</th>
+            <th className="border px-4 py-2">Email qqd</th>
             <th className="border px-4 py-2">In-Game Name</th>
             <th className="border px-4 py-2">Verified</th>
             <th className="border px-4 py-2">Created</th>
