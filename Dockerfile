@@ -1,23 +1,33 @@
-# Frontend Dockerfile for Next.js
-FROM node:18-alpine
+# Dockerfile
+FROM python:3.12-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy only package files for caching npm install
-COPY package.json package-lock.json* ./
+# Ensure Python can import from /app
+ENV PYTHONPATH="/app"
 
-# Install dependencies (cached if unchanged)
-RUN npm install
+# Copy source code into container
+COPY . /app
 
-# Copy all other source files
-COPY . .
+# Debug check (optional)
+RUN ls /app/mgz_hd
 
-# Expose frontend port
-EXPOSE 3000
+# Install PostgreSQL client, pip, and dependencies
+RUN apt-get update && \
+    apt-get install -y postgresql-client && \
+    pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Default to production, allow override via NODE_ENV
-ENV NODE_ENV=production
+# Make wait-for-postgres script executable
+RUN chmod +x /app/wait-for-postgres.sh
 
-# Run production or development command based on environment
-CMD ["sh", "-c", "if [ \"$NODE_ENV\" = 'development' ]; then npm run dev; else npm run build && npm start; fi"]
+# Optional defaults (these can be overridden at runtime)
+ENV POSTGRES_HOST=aoe2-postgres
+ENV POSTGRES_PORT=5432
+ENV POSTGRES_USER=aoe2user
+ENV POSTGRES_DB=aoe2db
+
+# Start script: wait for DB, migrate, launch app
+CMD ["sh", "-c", "./wait-for-postgres.sh && flask db upgrade && python app.py"]
