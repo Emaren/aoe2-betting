@@ -28,6 +28,7 @@ interface GameStats {
   map: any;
   game_type: string;
   duration: number;
+  game_duration?: number;
   players: PlayerStats[];
   timestamp: string;
   replay_hash: string;
@@ -175,7 +176,7 @@ const GameStatsPage = () => {
           {games.map((game, index) => {
             const isLatest = index === 0;
             const matchNumber = games.length - index;
-            const cleanedDuration = sanitizeDuration(game.duration);
+            const cleanedDuration = sanitizeDuration(game.duration || game.game_duration || 0);
 
             return (
               <div
