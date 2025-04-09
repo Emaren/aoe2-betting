@@ -1,30 +1,23 @@
-# Dockerfile
-FROM python:3.12-slim
+# aoe2hd-frontend/Dockerfile
+
+# ✅ Use Node.js base image
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Ensure Python can import from /app
-ENV PYTHONPATH="/app"
+# Copy package.json and install deps first (for caching)
+COPY package*.json ./
+RUN npm install
 
-# Copy source code into container
-COPY . /app
+# Copy the rest of the project
+COPY . .
 
-# Install PostgreSQL client, pip, and dependencies
-RUN apt-get update && \
-    apt-get install -y postgresql-client && \
-    pip install --upgrade pip && \
-    pip install -r requirements.txt && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Expose the port used by `next dev`
+EXPOSE 3000
 
-# Make wait-for-postgres script executable
-RUN chmod +x /app/wait-for-postgres.sh
+# Set env explicitly for dev mode inside Docker
+ENV NODE_ENV=development
 
-# Optional defaults (these can be overridden at runtime)
-ENV POSTGRES_HOST=aoe2-postgres
-ENV POSTGRES_PORT=5432
-ENV POSTGRES_USER=aoe2user
-ENV POSTGRES_DB=aoe2db
-
-# Start script: wait for DB, migrate, launch app
-CMD ["sh", "-c", "./wait-for-postgres.sh && flask db upgrade && python app.py"]
+# Start the dev server
+CMD ["npm", "run", "dev"]
