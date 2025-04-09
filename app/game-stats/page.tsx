@@ -30,7 +30,7 @@ interface GameStats {
   duration: number;
   players: PlayerStats[];
   timestamp: string;
-  replay_hash: string; // ✅ Required for refresh check
+  replay_hash: string;
 }
 
 // --- Helpers ---
@@ -88,19 +88,25 @@ const GameStatsPage = () => {
         }
 
         const formattedGames = data.map((game: GameStats) => {
-          let safePlayers = game.players;
-          let safeMap = game.map;
+          let safePlayers: PlayerStats[] = [];
+          let safeMap: any = game.map;
 
-          if (typeof safePlayers === "string") {
+          if (typeof game.players === "string") {
             try {
-              safePlayers = JSON.parse(safePlayers);
-            } catch {}
+              safePlayers = JSON.parse(game.players);
+            } catch {
+              safePlayers = [];
+            }
+          } else if (Array.isArray(game.players)) {
+            safePlayers = game.players;
           }
 
           if (typeof safeMap === "string") {
             try {
               safeMap = JSON.parse(safeMap);
-            } catch {}
+            } catch {
+              safeMap = {};
+            }
           }
 
           return { ...game, players: safePlayers, map: safeMap };
@@ -262,8 +268,6 @@ const GameStatsPage = () => {
           })}
         </div>
       )}
-
-      
     </div>
   );
 };
