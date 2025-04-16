@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserCircle, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
+import { auth } from "@/lib/firebase";
+
 
 type Bet = {
   challenger: string;
@@ -15,40 +21,31 @@ type Bet = {
 };
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8002";
-console.log("🔧 API Base URL:", API);
+console.log("\ud83d\udd27 API Base URL:", API);
 
 export default function MainPage() {
   const router = useRouter();
-
-  // ------------------------------------------------------------------
-  // State
-  // ------------------------------------------------------------------
   const [betPending, setBetPending] = useState(false);
   const [betAmount, setBetAmount] = useState(0);
   const [challenger, setChallenger] = useState("");
   const [opponent, setOpponent] = useState("");
-
   const [menuOpen, setMenuOpen] = useState(false);
   const [pendingBets, setPendingBets] = useState<Bet[]>([]);
   const [betStatus, setBetStatus] = useState("");
   const [showButtons, setShowButtons] = useState(true);
 
-  // Name Prompt State
   const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [playerName, setPlayerName] = useState("");
+  const [password, setPassword] = useState("");
 
-  // ------------------------------------------------------------------
-  // On mount: Check user, load bets
-  // ------------------------------------------------------------------
   useEffect(() => {
-    // 1) local UID
     let uid = localStorage.getItem("uid");
     if (!uid) {
       uid = `uid-${crypto.randomUUID()}`;
       localStorage.setItem("uid", uid);
     }
 
-    // 2) Check if user in DB
     fetch(`${API}/api/user/me`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -56,11 +53,9 @@ export default function MainPage() {
     })
       .then(async (res) => {
         if (res.status === 404) {
-          // Show name prompt only if user doesn't exist
           console.log("No user found for UID:", uid, "=> prompting for a name...");
           setShowNamePrompt(true);
         } else if (!res.ok) {
-          // Some other error
           const msg = await res.text();
           console.error("Failed user lookup:", res.status, msg);
         } else {
@@ -68,14 +63,12 @@ export default function MainPage() {
         }
       })
       .catch((err) => {
-        console.error("❌ Network error checking user:", err);
+        console.error("\u274c Network error checking user:", err);
       });
 
-    // 3) load pending bets
     const storedBets = JSON.parse(localStorage.getItem("pendingBets") || "[]");
     setPendingBets(storedBets);
 
-    // 4) demo bet pending
     setTimeout(() => {
       setBetPending(true);
       setBetAmount(3);
@@ -83,9 +76,6 @@ export default function MainPage() {
     }, 3000);
   }, []);
 
-  // ------------------------------------------------------------------
-  // If user is new => prompt for Player Name
-  // ------------------------------------------------------------------
   const savePlayerName = async () => {
     const trimmed = playerName.trim();
     if (!trimmed) {
@@ -93,38 +83,86 @@ export default function MainPage() {
       return;
     }
 
-    const uid = localStorage.getItem("uid");
-    if (!uid) {
-      alert("No UID found. Refresh page?");
-      return;
+    const storedEmail = localStorage.getItem("userEmail");
+    const storedPassword = localStorage.getItem("userPassword");
+    const uid = localStorage.getItem("uid") || "";
+    const generatedEmail = `${trimmed.toLowerCase().replace(/\s+/g, "")}.${uid.slice(-6)}@aoe2hd.app`;
+
+    // If same name and we have stored credentials, try silent login
+    if (storedEmail === generatedEmail && storedPassword) {
+      try {
+        const userCred = await signInWithEmailAndPassword(auth, storedEmail, storedPassword);
+        console.log("\u2705 Auto-logged in returning user:", storedEmail);
+        setShowNamePrompt(false);
+        return;
+      } catch (err) {
+        console.warn("\u26a0\ufe0f Auto-login failed, prompting for password...");
+      }
     }
 
+    setShowNamePrompt(false);
+    setShowPasswordPrompt(true);
+  };
+
+  const savePasswordAndRegister = async () => {
+    const trimmed = playerName.trim();
+    const uid = localStorage.getItem("uid") || "";
+    const email = `${trimmed.toLowerCase().replace(/\s+/g, "")}.${uid.slice(-6)}@aoe2hd.app`;
+
     try {
-      const res = await fetch(`${API}/api/user/register`, {
+      const userCred = await signInWithEmailAndPassword(auth, email, password);
+      console.log("\ud83d\udfe2 Signed in existing Firebase user");
+
+      await fetch(`${API}/api/user/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          uid,
-          email: "",
+          uid: userCred.user.uid,
+          email,
           in_game_name: trimmed,
+          password,
         }),
       });
-      if (!res.ok) {
-        console.error("❌ Registration failed:", res.status);
-        alert("Failed to register user. See console for details.");
-        return;
+
+      localStorage.setItem("userEmail", email);
+      localStorage.setItem("userPassword", password);
+
+      setShowPasswordPrompt(false);
+    } catch (err: any) {
+      if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential") {
+        try {
+          const newUser = await createUserWithEmailAndPassword(auth, email, password);
+          console.log("\u2705 Created new Firebase user");
+
+          await fetch(`${API}/api/user/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              uid: newUser.user.uid,
+              email,
+              in_game_name: trimmed,
+              password,
+            }),
+          });
+
+          localStorage.setItem("userEmail", email);
+          localStorage.setItem("userPassword", password);
+
+          setShowPasswordPrompt(false);
+        } catch (e) {
+          console.error("\u274c Failed to create new user:", e);
+          alert("Failed to register.");
+        }
+      } else if (err.code === "auth/wrong-password") {
+        alert("Wrong password.");
+      } else {
+        console.error("\u274c Sign-in error:", err);
+        alert("Sign-in failed.");
       }
-      console.log("🆕 User registered with name:", trimmed);
-      setShowNamePrompt(false); // Hide prompt, show main UI
-    } catch (err) {
-      console.error("❌ Network error registering user:", err);
-      alert("Network error. See console for details.");
     }
   };
+  
 
-  // ------------------------------------------------------------------
-  // Bet logic
-  // ------------------------------------------------------------------
   const handleDecline = () => {
     const newBet = { challenger, betAmount, inactive: false };
     const storedBets = JSON.parse(localStorage.getItem("pendingBets") || "[]");
@@ -152,23 +190,11 @@ export default function MainPage() {
   const handleAccept = () => {
     setBetStatus("Accepted!");
     setShowButtons(false);
-
-    setTimeout(() => {
-      setBetStatus("Waiting For Battle To Start");
-    }, 5000);
-
-    setTimeout(() => {
-      setBetStatus("Battle Underway!");
-    }, 10000);
-
-    setTimeout(() => {
-      setBetStatus("Battle Finished! Processing Win.");
-    }, 20000);
+    setTimeout(() => setBetStatus("Waiting For Battle To Start"), 5000);
+    setTimeout(() => setBetStatus("Battle Underway!"), 10000);
+    setTimeout(() => setBetStatus("Battle Finished! Processing Win."), 20000);
   };
 
-  // ------------------------------------------------------------------
-  // If showNamePrompt => show the "Welcome" name input
-  // ------------------------------------------------------------------
   if (showNamePrompt) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6">
@@ -198,6 +224,31 @@ export default function MainPage() {
     );
   }
 
+  if (showPasswordPrompt) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6">
+        <Card className="bg-gray-800 shadow-xl w-full max-w-md">
+          <CardContent className="p-8 flex flex-col space-y-6">
+            <h1 className="text-xl font-bold text-center">Set your Password</h1>
+            <Input
+              className="text-black px-4 py-3 text-lg rounded-md"
+              placeholder="Choose a password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <Button
+              onClick={savePasswordAndRegister}
+              className="w-full bg-blue-600 hover:bg-blue-700 py-3"
+            >
+              Register & Start Betting
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // ------------------------------------------------------------------
   // Otherwise => show the main page
   // ------------------------------------------------------------------
@@ -210,7 +261,7 @@ export default function MainPage() {
           onClick={() => setMenuOpen(!menuOpen)}
         >
           <UserCircle className="w-6 h-6" />
-          My Account1
+          My Account2
         </button>
         {menuOpen && (
           <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg overflow-hidden">

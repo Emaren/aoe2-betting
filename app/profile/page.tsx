@@ -10,41 +10,39 @@ export default function ProfilePage() {
   const [playerName, setPlayerName] = useState("");
   const [isVerified, setIsVerified] = useState(false);
 
-  // Fetch user data from /api/user/me (POST)
   const fetchUser = async () => {
     const uid = localStorage.getItem("uid");
-    if (!uid) return;
+    const fallbackEmail = localStorage.getItem("userEmail");
 
     try {
       const res = await fetch("/api/user/me", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid }),
+        body: JSON.stringify({ uid, email: fallbackEmail }),
       });
 
       if (res.status === 404) {
-        console.log("No user found for UID:", uid, "(server returned 404)");
-        return; // Just exit gracefully
-      }
-
-      if (!res.ok) {
-        console.error("Failed to fetch user, status:", res.status);
+        console.log("No user found for UID or email (404)");
         return;
       }
 
-      // If status is 200:
+      if (!res.ok) {
+        console.error("Failed to fetch user:", res.status);
+        return;
+      }
+
       const data = await res.json();
       if (data.in_game_name) {
         setPlayerName(data.in_game_name);
         localStorage.setItem("playerName", data.in_game_name);
       }
+
       setIsVerified(!!data.verified);
     } catch (err) {
       console.error("❌ Failed to fetch user:", err);
     }
   };
 
-  // On mount, register user if needed, then fetch user data
   useEffect(() => {
     let uid = localStorage.getItem("uid");
 
@@ -52,50 +50,41 @@ export default function ProfilePage() {
       if (!uid) {
         uid = `uid-${crypto.randomUUID()}`;
         localStorage.setItem("uid", uid);
+
+        const email = localStorage.getItem("userEmail") || "";
+        const in_game_name = localStorage.getItem("playerName") || "";
+
         try {
           await fetch("/api/user/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ uid, email: "", in_game_name: "" }),
+            body: JSON.stringify({ uid, email, in_game_name }),
           });
           console.log("🆕 User registered:", uid);
         } catch (err) {
           console.error("❌ Failed to register user:", err);
         }
       }
+
       await fetchUser();
     };
 
     registerAndFetch();
 
-    // Auto-refresh "verified" badge on tab focus
-    const handleFocus = () => {
-      console.log("🔄 Refetching verification on window focus");
-      fetchUser();
-    };
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
+    window.addEventListener("focus", fetchUser);
+    return () => window.removeEventListener("focus", fetchUser);
   }, []);
 
-  // Name change local state
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPlayerName(e.target.value);
   };
 
-  // POST to /api/user/update_name
   const handleSaveName = async () => {
     const trimmed = playerName.trim();
-    if (!trimmed) {
-      alert("Enter a valid name.");
-      return;
-    }
+    if (!trimmed) return alert("Enter a valid name.");
 
+    const uid = localStorage.getItem("uid") || "";
     localStorage.setItem("playerName", trimmed);
-    const uid = localStorage.getItem("uid");
-    if (!uid) {
-      alert("UID missing");
-      return;
-    }
 
     try {
       const res = await fetch("/api/user/update_name", {
@@ -105,37 +94,36 @@ export default function ProfilePage() {
       });
 
       if (res.status === 404) {
-        console.log("Cannot update name; user doesn't exist. (404)");
         alert("Please register first or check your UID.");
         return;
       }
 
       if (!res.ok) {
-        console.error("Update name failed, status:", res.status);
-        throw new Error(`Status ${res.status}`);
+        throw new Error(`Update name failed: ${res.status}`);
       }
 
-      // If we get here, it's 200
       const result = await res.json();
       alert(`Saved! Verified: ${result.verified}`);
       setIsVerified(result.verified);
     } catch (err) {
-      console.error("❌ Failed to update name:", err);
-      alert(
-        "Name update likely succeeded, but verifying status failed. Please refresh."
-      );
+      console.error("❌ Update error:", err);
+      alert("Name update likely worked, but verification check failed.");
     }
   };
 
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-6">Profile</h1>
-      <p className="mb-4">Manage your account details and preferences here..</p>
+      <p className="mb-4">Manage your account details and preferences here.</p>
 
       <div className="mb-6">
         <label htmlFor="playerName" className="block text-lg mb-2">
           Player Name{" "}
-          {isVerified && <span className="text-green-400">✅ Verified</span>}
+          {playerName && (
+            <span className={isVerified ? "text-green-400" : "text-yellow-400"}>
+              {isVerified ? "✅ Verified" : "❌ Unverified"}
+            </span>
+          )}
         </label>
         <Input
           id="playerName"
