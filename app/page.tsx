@@ -33,33 +33,49 @@ export default function MainPage() {
     if (typeof window !== "undefined") {
       window.firebaseAuth = getAuth();
     }
-
+  
     const uid = localStorage.getItem("uid");
     if (!uid) {
       console.warn("⚠️ No UID found in localStorage.");
       setShowNamePrompt(true);
       return;
     }
-
+  
     fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8002"}/api/user/me`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ uid }),
     })
       .then(async (res) => {
-        if (res.status === 404) setShowNamePrompt(true);
-        else if (!res.ok) console.error("Failed user lookup:", res.status);
+        if (res.status === 404) {
+          console.warn("⚠️ UID not found on backend. Clearing localStorage.");
+          localStorage.removeItem("uid");
+          localStorage.removeItem("userEmail");
+          localStorage.removeItem("userPassword");
+          localStorage.removeItem("playerName");
+          setShowNamePrompt(true);
+        } else if (!res.ok) {
+          console.error("Failed user lookup:", res.status);
+        }
       })
-      .catch((err) => console.error("❌ Network error:", err));
-
+      .catch((err) => {
+        console.error("❌ Network error:", err);
+        localStorage.removeItem("uid");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("userPassword");
+        localStorage.removeItem("playerName");
+        setShowNamePrompt(true);
+      });
+  
     setPendingBets(JSON.parse(localStorage.getItem("pendingBets") || "[]"));
-
+  
     setTimeout(() => {
       setBetPending(true);
       setBetAmount(3);
       setChallenger("RedLineKey");
     }, 3000);
   }, []);
+  
 
   const savePlayerName = async () => {
     const trimmed = playerName.trim();
