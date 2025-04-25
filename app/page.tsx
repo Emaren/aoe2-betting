@@ -10,6 +10,9 @@ import BetChallengeCard from "@/components/BetChallengeCard";
 import HeaderMenu from "@/components/HeaderMenu";
 import type { Bet } from "@/lib/types";
 
+// 👇 Add this import
+import { getAuth } from "firebase/auth";
+
 export default function MainPage() {
   const router = useRouter();
   const [betPending, setBetPending] = useState(false);
@@ -27,6 +30,11 @@ export default function MainPage() {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
+    // 🔓 Expose Firebase auth to window for dev console use
+    if (typeof window !== "undefined") {
+      window.firebaseAuth = getAuth();
+    }
+
     const uid = localStorage.getItem("uid");
     if (!uid) {
       console.warn("⚠️ No UID found in localStorage.");
