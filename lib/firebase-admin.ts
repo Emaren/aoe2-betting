@@ -1,14 +1,24 @@
 // lib/firebase-admin.ts
 
-import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
+import { initializeApp, cert, getApps, App } from "firebase-admin/app";
+import { getAuth, Auth } from "firebase-admin/auth";
 
-if (!getApps().length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_KEY || "{}");
+// Safely parse the FIREBASE_ADMIN_KEY env variable
+const serviceAccount = process.env.FIREBASE_ADMIN_KEY
+  ? JSON.parse(process.env.FIREBASE_ADMIN_KEY)
+  : null;
 
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
+if (!serviceAccount) {
+  throw new Error("FIREBASE_ADMIN_KEY environment variable is missing or invalid.");
 }
 
-export const adminAuth = getAuth();
+// Only initialize if no apps exist yet
+const adminApp: App =
+  getApps().length === 0
+    ? initializeApp({
+        credential: cert(serviceAccount),
+      })
+    : getApps()[0];
+
+// Export Admin Auth instance
+export const adminAuth: Auth = getAuth(adminApp);
