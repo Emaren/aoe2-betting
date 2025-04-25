@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wallet } from "lucide-react";
@@ -9,8 +10,6 @@ import AuthPasswordPrompt from "@/components/AuthPasswordPrompt";
 import BetChallengeCard from "@/components/BetChallengeCard";
 import HeaderMenu from "@/components/HeaderMenu";
 import type { Bet } from "@/lib/types";
-
-// 👇 Add this import
 import { getAuth } from "firebase/auth";
 
 export default function MainPage() {
@@ -28,9 +27,9 @@ export default function MainPage() {
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [playerName, setPlayerName] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false); // 👈 Added loading state
 
   useEffect(() => {
-    // 🔓 Expose Firebase auth to window for dev console use
     if (typeof window !== "undefined") {
       window.firebaseAuth = getAuth();
     }
@@ -75,10 +74,13 @@ export default function MainPage() {
 
   const savePasswordAndRegister = async () => {
     try {
+      setLoading(true); // 👈 Start loading
       await loginOrRegister(playerName, password);
       setShowPasswordPrompt(false);
     } catch (e) {
       alert("Authentication failed.");
+    } finally {
+      setLoading(false); // 👈 Stop loading
     }
   };
 
@@ -102,12 +104,21 @@ export default function MainPage() {
     }, 2000);
   };
 
+  // 👇 NEW: Show Loading spinner if authenticating
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+        <div className="text-2xl font-bold animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
   if (showNamePrompt) {
-    return <AuthNamePrompt playerName={playerName} setPlayerName={setPlayerName} savePlayerName={savePlayerName} />;
+    return <AuthNamePrompt playerName={playerName} setPlayerName={setPlayerName} savePlayerName={savePlayerName} loading={loading} />;
   }
 
   if (showPasswordPrompt) {
-    return <AuthPasswordPrompt password={password} setPassword={setPassword} savePasswordAndRegister={savePasswordAndRegister} />;
+    return <AuthPasswordPrompt password={password} setPassword={setPassword} savePasswordAndRegister={savePasswordAndRegister} loading={loading} />;
   }
 
   return (
@@ -130,7 +141,15 @@ export default function MainPage() {
 
         <BetChallengeCard betPending={betPending} challenger={challenger} opponent={opponent} setOpponent={setOpponent} />
 
-        {betStatus && <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 0.5, repeat: Infinity }} className="text-2xl font-bold bg-gray-800 px-6 py-3 rounded-lg shadow-md">{betStatus}</motion.div>}
+        {betStatus && (
+          <motion.div
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 0.5, repeat: Infinity }}
+            className="text-2xl font-bold bg-gray-800 px-6 py-3 rounded-lg shadow-md"
+          >
+            {betStatus}
+          </motion.div>
+        )}
 
         <AnimatePresence>
           {betPending && showButtons && (

@@ -7,6 +7,7 @@ interface Props {
   playerName: string;
   setPlayerName: (name: string) => void;
   savePlayerName: () => void;
+  loading: boolean;
 }
 
 export default function AuthNamePrompt({ playerName, setPlayerName, savePlayerName }: Props) {
@@ -24,6 +25,7 @@ export default function AuthNamePrompt({ playerName, setPlayerName, savePlayerNa
           />
           <Button
             onClick={savePlayerName}
+            disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 py-3"
           >
             Continue

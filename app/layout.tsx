@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import PWARegister from "@/app/pwa";
+import { Toaster } from "sonner"; // ✅ Add this
 
 export const metadata: Metadata = {
   title: "AoE2 Betting",
@@ -17,10 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <link rel="manifest" href="/manifest.json" />
       </head>
-      {/* Removed `h-screen` and `justify-center` to allow scrolling */}
       <body className="bg-gray-900 text-white">
         <PWARegister />
         {children}
+        <Toaster richColors /> {/* ✅ Add Toaster here at the very end */}
       </body>
     </html>
   );

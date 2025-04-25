@@ -1,4 +1,5 @@
 "use client";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,9 +8,10 @@ interface Props {
   password: string;
   setPassword: (pw: string) => void;
   savePasswordAndRegister: () => void;
+  loading: boolean; // 👈 add loading prop
 }
 
-export default function AuthPasswordPrompt({ password, setPassword, savePasswordAndRegister }: Props) {
+export default function AuthPasswordPrompt({ password, setPassword, savePasswordAndRegister, loading }: Props) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6">
       <Card className="bg-gray-800 shadow-xl w-full max-w-md">
@@ -24,6 +26,7 @@ export default function AuthPasswordPrompt({ password, setPassword, savePassword
           />
           <Button
             onClick={savePasswordAndRegister}
+            disabled={loading} // 👈 Disable button while loading
             className="w-full bg-blue-600 hover:bg-blue-700 py-3"
           >
             Register & Start Betting
