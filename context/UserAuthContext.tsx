@@ -57,17 +57,16 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
       const auth = window.firebase?.auth?.();
       if (!auth) return;
 
-      if (auth.currentUser) return; // already signed in
+      if (auth.currentUser) return;
 
       const email = localStorage.getItem("userEmail");
-      const pass  = localStorage.getItem("userPass");
+      const pass = localStorage.getItem("userPass");
       if (!email || !pass) return;
 
       try {
         await auth.signInWithEmailAndPassword(email, pass);
       } catch (e) {
         console.warn("🔑 Silent login failed:", e);
-        // credentials stale → purge them
         ["userEmail", "userPass", "uid"].forEach((k) =>
           localStorage.removeItem(k)
         );
@@ -75,7 +74,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     };
 
     trySilentLogin();
-  }, []); // run once on mount
+  }, []);
 
   /* ─── 2) Firebase auth listener ──────────────────── */
   useEffect(() => {
@@ -93,20 +92,27 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
         const id = user.uid;
         setUid(id);
 
-        // refresh token to hit /me
         const token = await user.getIdToken(true);
         const email =
           localStorage.getItem("userEmail") || `${id}@aoe2hdbets.com`;
+        const name = localStorage.getItem("playerName") || "";
 
         try {
+          console.log("🔍 Fetching user with:", {
+            uid: id,
+            email,
+            in_game_name: name,
+          });
+
           const res = await fetch("/api/user/me", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ uid: id, email }),
+            body: JSON.stringify({ uid: id, email, in_game_name: name }),
           });
+
           if (res.ok) {
             const data = await res.json();
             if (data.in_game_name) {
@@ -115,21 +121,41 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
             }
             setIsAdmin(!!data.is_admin);
             localStorage.setItem("isAdmin", String(!!data.is_admin));
+          } else {
+            console.error("❌ Failed to fetch user:", res.status);
           }
         } catch (e) {
           console.warn("fetch /me failed:", e);
         }
+
+        // ✅ Start ping loop to update last_seen
+        const ping = async () => {
+          try {
+            const freshToken = await user.getIdToken();
+            await fetch("/api/user/ping", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${freshToken}`,
+              },
+            });
+          } catch (err) {
+            console.warn("⚠️ Failed to ping /api/user/ping", err);
+          }
+        };
+
+        ping(); // initial ping
+        const interval = setInterval(ping, 60_000); // repeat every 60s
+        return () => clearInterval(interval); // cleanup
       });
 
     return () => unsub?.();
-  }, []);
+  }, [playerName]);
 
   /* ─── logout (keep creds and admin flag) ──────────── */
   const logout = async () => {
     const auth = window.firebase?.auth?.();
     await auth?.signOut();
 
-    // Retain everything so silent-login can happen next launch
     const KEEP = [
       "uid",
       "userEmail",
@@ -148,7 +174,6 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
 
     setUid(null);
     setIsLoggedIn(false);
-    // ❌ DO NOT reset isAdmin here
     router.push("/");
   };
 
@@ -156,7 +181,10 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider
       value={{
         playerName,
-        setPlayerName,
+        setPlayerName: (n: string) => {
+          setPlayerName(n);
+          localStorage.setItem("playerName", n);
+        },
         uid,
         setUid,
         isAdmin,

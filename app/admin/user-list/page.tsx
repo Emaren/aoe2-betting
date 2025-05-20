@@ -9,6 +9,7 @@ type User = {
   in_game_name: string;
   verified: boolean;
   created_at: string;
+  last_seen?: string; // ✅ NEW
 };
 
 export default function UsersPage() {
@@ -66,6 +67,7 @@ export default function UsersPage() {
             <th className="border px-4 py-2">In-Game Name</th>
             <th className="border px-4 py-2">Verified</th>
             <th className="border px-4 py-2">Created</th>
+            <th className="border px-4 py-2">Last Seen</th> {/* ✅ NEW */}
             <th className="border px-4 py-2">Actions</th>
           </tr>
         </thead>
@@ -78,6 +80,9 @@ export default function UsersPage() {
               <td className="border px-4 py-2">{u.verified ? "✅" : "❌"}</td>
               <td className="border px-4 py-2">
                 {u.created_at ? new Date(u.created_at).toLocaleString() : "Unknown"}
+              </td>
+              <td className="border px-4 py-2">
+                {u.last_seen ? new Date(u.last_seen).toLocaleString() : "—"}
               </td>
               <td className="border px-4 py-2">
                 <Button
