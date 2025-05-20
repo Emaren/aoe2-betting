@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useWoloBalance } from "@/hooks/useWoloBalance";
 import { useKeplr } from "@/hooks/use-keplr";
 import { useClickOutside } from "@/hooks/useClickOutside";
-import { useUserAuth } from "@/context/UserAuthContext";   // ← ✅ import from context
+import { useUserAuth } from "@/context/UserAuthContext";
 import type firebase from "firebase/compat/app";
 
 declare global {
@@ -28,20 +28,20 @@ export default function HeaderMenu({ pendingBetsCount }: Props) {
   const { data: rawBalance } = useWoloBalance(address);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // 🟢 Now reading isAdmin from the context-based hook
-  const { playerName, setPlayerName, isAdmin } = useUserAuth();
+  // grab exactly what we need from auth context
+  const { playerName, logout, isAdmin } = useUserAuth();
 
-  useClickOutside(menuRef as React.RefObject<HTMLElement>, () => setMenuOpen(false));
+  useClickOutside(
+    menuRef as React.RefObject<HTMLElement>,
+    () => setMenuOpen(false)
+  );
 
   const handleLogout = async () => {
     try {
-      if (window.firebase?.auth?.()?.currentUser) {
-        await window.firebase.auth().signOut();
-      }
-      localStorage.clear();
-      setPlayerName("My Account");
+      // one call handles sign-out + localStorage cleanup
+      await logout();
       router.push("/");
-      window.location.reload();
+      router.refresh(); // ensure UI resets
     } catch (err) {
       console.error("❌ Logout failed:", err);
       alert("Logout failed. Try again.");
@@ -61,17 +61,21 @@ export default function HeaderMenu({ pendingBetsCount }: Props) {
       >
         <UserCircle className="w-6 h-6" />
         <AnimatePresence mode="wait">
-          <motion.span key={playerName || "My Account"}>{playerName}</motion.span>
+          <motion.span key={playerName || "My Account"}>
+            {playerName}
+          </motion.span>
         </AnimatePresence>
       </button>
 
       {menuOpen && (
         <div className="absolute right-0 top-14 w-56 bg-gray-800 rounded-lg shadow-lg z-50">
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/profile")}>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700"
+            onClick={() => navigate("/profile")}
+          >
             👤 Profile
           </button>
 
-          {/* 🛡️ Shows only when isAdmin === true */}
           {isAdmin && (
             <button
               className="w-full text-left px-4 py-2 hover:bg-gray-700"
@@ -81,28 +85,52 @@ export default function HeaderMenu({ pendingBetsCount }: Props) {
             </button>
           )}
 
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/users")}>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700"
+            onClick={() => navigate("/users")}
+          >
             👥 Online Users
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/replay-parser")}>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700"
+            onClick={() => navigate("/replay-parser")}
+          >
             🧪 Parse Replay (Manual)
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/pending-bets")}>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700"
+            onClick={() => navigate("/pending-bets")}
+          >
             📌 Pending Bets ({pendingBetsCount})
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/upload")}>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700"
+            onClick={() => navigate("/upload")}
+          >
             📤 Upload Replay
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/game-stats")}>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700"
+            onClick={() => navigate("/game-stats")}
+          >
             📊 Game Stats
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/past-earnings")}>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700"
+            onClick={() => navigate("/past-earnings")}
+          >
             💰 Past Earnings
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/wallet")}>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700"
+            onClick={() => navigate("/wallet")}
+          >
             💼 My Wallet
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/settings")}>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700"
+            onClick={() => navigate("/settings")}
+          >
             ⚙️ Settings
           </button>
 

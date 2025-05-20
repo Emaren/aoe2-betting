@@ -1,67 +1,107 @@
 // app/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useUserAuth } from "@/context/UserAuthContext";
 import AuthNamePrompt from "@/components/AuthNamePrompt";
 import AuthPasswordPrompt from "@/components/AuthPasswordPrompt";
 import MainBetUI from "@/components/MainBetUI";
-import AdminUserList from "@/components/AdminUserList"; // ✅ Add this import
+import AdminUserList from "@/components/AdminUserList";
 
 export default function Page() {
-  const {
-    uid,
-    playerName,
-    setPlayerName,
-    setUid,
-    loading,
-  } = useUserAuth();
+  const { uid, playerName, setPlayerName, setUid, loading, isAdmin } =
+    useUserAuth();
 
-  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [showPwPrompt, setShowPwPrompt] = useState(false);
   const [password, setPassword] = useState("");
   const [opponent, setOpponent] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
 
+  /* reset password prompt after logout */
+  useEffect(() => {
+    if (!uid) setShowPwPrompt(false);
+  }, [uid]);
+
   const savePlayerName = () => {
-    if (playerName.trim()) {
-      setShowPasswordPrompt(true);
-    }
+    if (playerName.trim()) setShowPwPrompt(true);
   };
 
-  const savePasswordAndRegister = async () => {
+  /* login / register (unchanged) */
+  const savePasswordAndAuth = async () => {
     if (!password.trim()) return;
 
-    const newUid = crypto.randomUUID();
-    const email = `${newUid}@aoe2hdbets.com`;
+    const auth = window.firebase.auth();
+    const existingEmail = localStorage.getItem("userEmail");
+    const existingPass = localStorage.getItem("userPass");
 
-    localStorage.setItem("uid", newUid);
-    localStorage.setItem("userEmail", email);
-    localStorage.setItem("userPass", password);
-    localStorage.setItem("playerName", playerName.trim());
+    let email = existingEmail;
+    let firstTime = false;
 
     try {
-      const methods = await window.firebase.auth().fetchSignInMethodsForEmail(email);
-      if (methods.length === 0) {
-        await window.firebase.auth().createUserWithEmailAndPassword(email, password);
+      if (existingEmail && existingPass) {
+        await auth.signInWithEmailAndPassword(existingEmail, existingPass);
       } else {
-        await window.firebase.auth().signInWithEmailAndPassword(email, password);
+        email = `${crypto.randomUUID()}@aoe2hdbets.com`;
+        await auth.createUserWithEmailAndPassword(email, password);
+        firstTime = true;
       }
-
-      await fetch("/api/user/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: newUid, email, in_game_name: playerName.trim() }),
-      });
-
-      setUid(newUid);
-      window.dispatchEvent(new Event("storage"));
-    } catch (err) {
-      console.error("❌ Registration failed:", err);
-      alert("Registration failed.");
+    } catch (e) {
+      console.error("Firebase auth error:", e);
+      return;
     }
+
+    const fbUser = auth.currentUser!;
+    const firebaseUid = fbUser.uid;
+    const token = await fbUser.getIdToken(true);
+
+    if (firstTime) {
+      localStorage.setItem("userPass", password);
+      localStorage.setItem("uid", firebaseUid);
+      localStorage.setItem("userEmail", email!);
+      localStorage.setItem("playerName", playerName.trim());
+    }
+
+    const meRes = await fetch("/api/user/me", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ uid: firebaseUid, email }),
+    });
+
+    if (meRes.status === 404) {
+      const regRes = await fetch("/api/user/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          uid: firebaseUid,
+          email,
+          in_game_name: playerName.trim(),
+        }),
+      });
+      if (!regRes.ok && regRes.status !== 400) {
+        console.error("Register failed:", await regRes.text());
+        return;
+      }
+      if (regRes.ok) {
+        const { is_admin } = await regRes.json();
+        localStorage.setItem("isAdmin", String(is_admin));
+      }
+    } else if (meRes.ok) {
+      const { is_admin } = await meRes.json();
+      localStorage.setItem("isAdmin", String(is_admin));
+    }
+
+    setUid(firebaseUid);
+    window.dispatchEvent(new Event("storage"));
   };
 
-  if (!uid && !showPasswordPrompt) {
+  /* conditional UI */
+  if (!uid && !showPwPrompt) {
     return (
       <AuthNamePrompt
         playerName={playerName}
@@ -72,17 +112,19 @@ export default function Page() {
     );
   }
 
-  if (!uid && showPasswordPrompt) {
+  if (!uid && showPwPrompt) {
     return (
       <AuthPasswordPrompt
         password={password}
         setPassword={setPassword}
-        savePasswordAndRegister={savePasswordAndRegister}
+        onSubmit={savePasswordAndAuth}
+        mode={localStorage.getItem("uid") ? "login" : "register"}
         loading={loading}
       />
     );
   }
 
+  /* main page */
   return (
     <main className="flex-1 max-w-4xl mx-auto p-4 bg-gray-900 text-white min-h-screen space-y-8">
       <MainBetUI
@@ -103,8 +145,7 @@ export default function Page() {
         playerName={playerName}
       />
 
-      {/* ✅ Show Admin Panel if you're the admin */}
-      {uid === "c30291ce-32f5-43a1-aa74-0dfb920a9923" && <AdminUserList />}
+      {isAdmin && <AdminUserList />}
     </main>
   );
 }

@@ -22,7 +22,6 @@ export default function ProfilePage() {
         await window.firebase.auth().signOut();
         console.log("✅ Firebase logout succeeded");
       }
-
       localStorage.clear();
       window.dispatchEvent(new Event("storage"));
       router.push("/");
@@ -84,11 +83,16 @@ export default function ProfilePage() {
   };
 
   const registerUser = async (uid: string, email: string) => {
-    const in_game_name = localStorage.getItem("playerName") || "";
+    const in_game_name = localStorage.getItem("playerName") || playerName || "";
     const idToken = await getIdToken();
 
+    if (!uid || !in_game_name) {
+      console.warn("⛔ Skipping registration — missing uid or in_game_name");
+      return;
+    }
+
     try {
-      await fetch("/api/user/register", {
+      const res = await fetch("/api/user/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -96,6 +100,12 @@ export default function ProfilePage() {
         },
         body: JSON.stringify({ uid, email, in_game_name }),
       });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Register failed: ${res.status} ${text}`);
+      }
+
       console.log("🆕 User registered:", uid);
       await fetchUser();
     } catch (err) {
