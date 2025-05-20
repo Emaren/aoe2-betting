@@ -1,14 +1,7 @@
-import { useState, useEffect } from "react";
+// hooks/useUserAuth.ts
+"use client";
 
-export function useUserAuth() {
-  const [uid, setUid] = useState<string | null>(null);
-
-  useEffect(() => {
-    const storedUid = localStorage.getItem("uid");
-    if (storedUid) {
-      setUid(storedUid);
-    }
-  }, []);
-
-  return { uid, setUid };
-}
+// Re-export the hook that lives in your global context.
+// All components that import from "@/hooks/useUserAuth"
+// will now read exactly the same data (uid, isAdmin, etc.).
+export { useUserAuth } from "@/context/UserAuthContext";

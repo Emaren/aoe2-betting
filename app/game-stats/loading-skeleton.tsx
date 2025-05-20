@@ -1,14 +1,31 @@
 "use client";
 
-import React from "react";
+export const cleanGameType = (rawType: string): string => {
+  const match = rawType.match(/'(VER.*?)'/);
+  return match && match[1] ? match[1] : rawType;
+};
+
+export const formatDuration = (totalSeconds: number): string => {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+  if (hours > 0 && minutes > 0 && secs > 0) return `${hours}h ${minutes}m ${secs}s`;
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h`;
+  if (minutes > 0 && secs > 0) return `${minutes}m ${secs}s`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${secs}s`;
+};
+
+export const sanitizeDuration = (seconds: number): number => {
+  if (seconds > 4 * 3600 || seconds < 10) return 0;
+  return seconds;
+};
 
 export const LoadingSkeleton = () => (
   <div className="space-y-6">
     {Array.from({ length: 3 }).map((_, idx) => (
-      <div
-        key={idx}
-        className="p-6 rounded-xl bg-gray-700 animate-pulse space-y-4"
-      >
+      <div key={idx} className="p-6 rounded-xl bg-gray-700 animate-pulse space-y-4">
         <div className="h-6 bg-gray-600 rounded w-1/2"></div>
         <div className="h-4 bg-gray-600 rounded w-1/3"></div>
         <div className="h-4 bg-gray-600 rounded w-1/4"></div>
@@ -19,25 +36,3 @@ export const LoadingSkeleton = () => (
     ))}
   </div>
 );
-
-export function cleanGameType(rawType: string): string {
-  const match = rawType.match(/'(VER.*?)'/);
-  return match && match[1] ? match[1] : rawType;
-}
-
-export function formatDuration(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
-  if (hours > 0 && minutes > 0 && secs > 0) return `${hours} hours ${minutes} minutes ${secs} seconds`;
-  if (hours > 0 && minutes > 0) return `${hours} hours ${minutes} minutes`;
-  if (hours > 0) return `${hours} hours`;
-  if (minutes > 0 && secs > 0) return `${minutes} minutes ${secs} seconds`;
-  if (minutes > 0) return `${minutes} minutes`;
-  return `${secs} seconds`;
-}
-
-export function sanitizeDuration(seconds: number): number {
-  if (seconds > 4 * 3600 || seconds < 10) return 0;
-  return seconds;
-}

@@ -1,53 +1,116 @@
+// components/HeaderMenu.tsx
 "use client";
+
+import { useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { UserCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useWoloBalance } from "@/hooks/useWoloBalance";
+import { useKeplr } from "@/hooks/use-keplr";
+import { useClickOutside } from "@/hooks/useClickOutside";
+import { useUserAuth } from "@/context/UserAuthContext";   // ← ✅ import from context
+import type firebase from "firebase/compat/app";
+
+declare global {
+  interface Window {
+    firebase: typeof firebase;
+  }
+}
 
 interface Props {
-  menuOpen: boolean;
-  toggleMenu: () => void;
   pendingBetsCount: number;
 }
 
-export default function HeaderMenu({ menuOpen, toggleMenu, pendingBetsCount }: Props) {
+export default function HeaderMenu({ pendingBetsCount }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
+  const { address } = useKeplr();
+  const { data: rawBalance } = useWoloBalance(address);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // 🟢 Now reading isAdmin from the context-based hook
+  const { playerName, setPlayerName, isAdmin } = useUserAuth();
+
+  useClickOutside(menuRef as React.RefObject<HTMLElement>, () => setMenuOpen(false));
+
+  const handleLogout = async () => {
+    try {
+      if (window.firebase?.auth?.()?.currentUser) {
+        await window.firebase.auth().signOut();
+      }
+      localStorage.clear();
+      setPlayerName("My Account");
+      router.push("/");
+      window.location.reload();
+    } catch (err) {
+      console.error("❌ Logout failed:", err);
+      alert("Logout failed. Try again.");
+    }
+  };
+
+  const navigate = (path: string) => {
+    setMenuOpen(false);
+    router.push(path);
+  };
 
   return (
-    <div className="absolute top-4 right-4 z-50">
+    <div className="relative flex gap-2 items-center" ref={menuRef}>
       <button
         className="bg-gray-700 hover:bg-gray-600 flex items-center gap-2 px-5 py-3 text-lg rounded-lg shadow-md"
-        onClick={toggleMenu}
+        onClick={() => setMenuOpen((open) => !open)}
       >
         <UserCircle className="w-6 h-6" />
-        My Account
+        <AnimatePresence mode="wait">
+          <motion.span key={playerName || "My Account"}>{playerName}</motion.span>
+        </AnimatePresence>
       </button>
+
       {menuOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => router.push("/profile")}>
+        <div className="absolute right-0 top-14 w-56 bg-gray-800 rounded-lg shadow-lg z-50">
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/profile")}>
             👤 Profile
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => router.push("/admin/user-list")}>
-            🛡️ Admin: User List
-          </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => router.push("/users")}>
+
+          {/* 🛡️ Shows only when isAdmin === true */}
+          {isAdmin && (
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-gray-700"
+              onClick={() => navigate("/admin/user-list")}
+            >
+              🛡️ Admin: User List
+            </button>
+          )}
+
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/users")}>
             👥 Online Users
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => router.push("/replay-parser")}>
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/replay-parser")}>
             🧪 Parse Replay (Manual)
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => router.push("/pending-bets")}>
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/pending-bets")}>
             📌 Pending Bets ({pendingBetsCount})
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => router.push("/upload")}>
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/upload")}>
             📤 Upload Replay
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => router.push("/game-stats")}>
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/game-stats")}>
             📊 Game Stats
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => router.push("/past-earnings")}>
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/past-earnings")}>
             💰 Past Earnings
           </button>
-          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => router.push("/settings")}>
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/wallet")}>
+            💼 My Wallet
+          </button>
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/settings")}>
             ⚙️ Settings
+          </button>
+
+          <button
+            className="w-full text-left px-4 py-2 text-red-400 hover:bg-red-700"
+            onClick={handleLogout}
+          >
+            🚪 Log Out
           </button>
         </div>
       )}

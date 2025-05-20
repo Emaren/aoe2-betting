@@ -11,7 +11,7 @@ export async function loginOrRegister(playerName: string, password: string): Pro
   const trimmed = playerName.trim();
   const uid = localStorage.getItem("uid") || `uid-${crypto.randomUUID()}`;
   const emailLocal = trimmed.toLowerCase().replace(/\s+/g, "");
-  const email = `${emailLocal}.${uid.slice(-6)}@aoe2hd.app`;
+  const email = `${emailLocal}.${uid.slice(-6)}@aoe2hdbets.com`;
 
   localStorage.setItem("uid", uid);
   localStorage.setItem("userEmail", email);

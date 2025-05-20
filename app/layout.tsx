@@ -1,27 +1,55 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import PWARegister from "@/app/pwa";
-import { Toaster } from "sonner"; // ✅ Add this
+// app/layout.tsx
+"use client";
 
-export const metadata: Metadata = {
-  title: "AoE2 Betting",
-  description: "Bet on AoE2 games",
-};
+import React from "react";
+import "./globals.css";
+import WalletConnector from "@/components/WalletConnector";
+import EarlyPatches from "@/components/EarlyPatches";
+import PWARegister from "@/app/pwa";
+import HeaderMenu from "@/components/HeaderMenu";
+import { Toaster } from "sonner";
+import { Providers } from "./Providers";
+import { UserAuthProvider, useUserAuth } from "@/context/UserAuthContext";
+
+function InnerLayout({ children }: { children: React.ReactNode }) {
+  const { uid, playerName, setPlayerName } = useUserAuth(); // ✅ fixed
+  const [pendingBetsCount, setPendingBetsCount] = React.useState(0);
+
+  return (
+    <>
+      <header className="w-full p-4 border-b border-gray-700">
+        <div className="max-w-4xl mx-auto flex flex-wrap justify-between items-center gap-4 overflow-visible">
+          <h1 className="text-xl font-semibold">AoE2 Betting</h1>
+          <div className="flex items-center gap-4">
+            <WalletConnector />
+            <HeaderMenu
+              pendingBetsCount={pendingBetsCount}
+              playerName={playerName}
+              setPlayerName={setPlayerName}
+              uid={uid} // ✅ now valid
+            />
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 max-w-4xl mx-auto p-4">{children}</main>
+    </>
+  );
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="AoE2 Betting" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-        <link rel="manifest" href="/manifest.json" />
-      </head>
-      <body className="bg-gray-900 text-white">
+      <head />
+      <body className="bg-gray-900 text-white min-h-screen flex flex-col">
+        <EarlyPatches />
         <PWARegister />
-        {children}
-        <Toaster richColors /> {/* ✅ Add Toaster here at the very end */}
+        <UserAuthProvider>
+          <Providers>
+            <InnerLayout>{children}</InnerLayout>
+          </Providers>
+        </UserAuthProvider>
+        <Toaster richColors />
       </body>
     </html>
   );
