@@ -11,12 +11,6 @@ import { useClickOutside } from "@/hooks/useClickOutside";
 import { useUserAuth } from "@/context/UserAuthContext";
 import type firebase from "firebase/compat/app";
 
-declare global {
-  interface Window {
-    firebase?: typeof firebase;
-  }
-}
-
 interface Props {
   pendingBetsCount: number;
   playerName: string;
