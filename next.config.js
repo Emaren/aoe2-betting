@@ -6,14 +6,9 @@ console.log(`🛠 Running inside Docker: ${isDocker}`);
 const FALLBACK_API = "https://aoe2hd-parser-api.onrender.com";
 const API_BASE = isDocker
   ? "http://aoe2-backend:8002"
-  : process.env.NEXT_PUBLIC_API_BASE_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    FALLBACK_API;
+  : process.env.NEXT_PUBLIC_API_BASE_URL || FALLBACK_API;
 console.log(`🌐 Backend API base URL: ${API_BASE}`);
 
-// ─────────────────────────────────────────────
-// 🛑 Disable PWA + Fast Refresh in dev
-// ─────────────────────────────────────────────
 const withPWA = require("next-pwa")({
   dest: "public",
   register: true,
@@ -23,9 +18,6 @@ const withPWA = require("next-pwa")({
 
 module.exports = withPWA({
   reactStrictMode: false, // avoid double-render during dev
-  experimental: {
-    reactRefresh: !isDev ? true : false, // full disable in dev
-  },
   productionBrowserSourceMaps: false, // don't generate giant .map files
   eslint: {
     ignoreDuringBuilds: true,
