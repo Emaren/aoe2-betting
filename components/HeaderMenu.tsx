@@ -13,35 +13,40 @@ import type firebase from "firebase/compat/app";
 
 declare global {
   interface Window {
-    firebase: typeof firebase;
+    firebase?: typeof firebase;
   }
 }
 
 interface Props {
   pendingBetsCount: number;
+  playerName: string;
+  setPlayerName: (name: string) => void;
+  uid: string | null;
 }
 
-export default function HeaderMenu({ pendingBetsCount }: Props) {
+export default function HeaderMenu({
+  pendingBetsCount,
+  playerName,
+  setPlayerName,
+  uid,
+}: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
   const { address } = useKeplr();
   const { data: rawBalance } = useWoloBalance(address);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { logout, isAdmin } = useUserAuth();
 
-  // grab exactly what we need from auth context
-  const { playerName, logout, isAdmin } = useUserAuth();
-
-  useClickOutside(
-    menuRef as React.RefObject<HTMLElement>,
-    () => setMenuOpen(false)
+  useClickOutside(menuRef as React.RefObject<HTMLElement>, () =>
+    setMenuOpen(false)
   );
 
   const handleLogout = async () => {
     try {
-      // one call handles sign-out + localStorage cleanup
       await logout();
+      setPlayerName("My Account");
       router.push("/");
-      router.refresh(); // ensure UI resets
+      router.refresh();
     } catch (err) {
       console.error("❌ Logout failed:", err);
       alert("Logout failed. Try again.");
@@ -69,68 +74,38 @@ export default function HeaderMenu({ pendingBetsCount }: Props) {
 
       {menuOpen && (
         <div className="absolute right-0 top-14 w-56 bg-gray-800 rounded-lg shadow-lg z-50">
-          <button
-            className="w-full text-left px-4 py-2 hover:bg-gray-700"
-            onClick={() => navigate("/profile")}
-          >
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/profile")}>
             👤 Profile
           </button>
 
           {isAdmin && (
-            <button
-              className="w-full text-left px-4 py-2 hover:bg-gray-700"
-              onClick={() => navigate("/admin/user-list")}
-            >
+            <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/admin/user-list")}>
               🛡️ Admin: User List
             </button>
           )}
 
-          <button
-            className="w-full text-left px-4 py-2 hover:bg-gray-700"
-            onClick={() => navigate("/users")}
-          >
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/users")}>
             👥 Online Users
           </button>
-          <button
-            className="w-full text-left px-4 py-2 hover:bg-gray-700"
-            onClick={() => navigate("/replay-parser")}
-          >
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/replay-parser")}>
             🧪 Parse Replay (Manual)
           </button>
-          <button
-            className="w-full text-left px-4 py-2 hover:bg-gray-700"
-            onClick={() => navigate("/pending-bets")}
-          >
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/pending-bets")}>
             📌 Pending Bets ({pendingBetsCount})
           </button>
-          <button
-            className="w-full text-left px-4 py-2 hover:bg-gray-700"
-            onClick={() => navigate("/upload")}
-          >
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/upload")}>
             📤 Upload Replay
           </button>
-          <button
-            className="w-full text-left px-4 py-2 hover:bg-gray-700"
-            onClick={() => navigate("/game-stats")}
-          >
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/game-stats")}>
             📊 Game Stats
           </button>
-          <button
-            className="w-full text-left px-4 py-2 hover:bg-gray-700"
-            onClick={() => navigate("/past-earnings")}
-          >
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/past-earnings")}>
             💰 Past Earnings
           </button>
-          <button
-            className="w-full text-left px-4 py-2 hover:bg-gray-700"
-            onClick={() => navigate("/wallet")}
-          >
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/wallet")}>
             💼 My Wallet
           </button>
-          <button
-            className="w-full text-left px-4 py-2 hover:bg-gray-700"
-            onClick={() => navigate("/settings")}
-          >
+          <button className="w-full text-left px-4 py-2 hover:bg-gray-700" onClick={() => navigate("/settings")}>
             ⚙️ Settings
           </button>
 
