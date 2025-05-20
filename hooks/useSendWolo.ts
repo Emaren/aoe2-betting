@@ -33,30 +33,31 @@ export function useSendWolo(provider: any /* WalletConnect provider */) {
       };
 
       try {
-        // Connect with our signer
         const client = await SigningStargateClient.connectWithSigner(
-          wolochain.rpc,
+          wolochain.rpcUrl,
           signer as any
         );
-
-        // Amount in minimal (uwolo)
+      
+        const accounts = await signer.getAccounts();
+      
         const sendAmount = {
-          denom: wolochain.coinMinimalDenom,
+          denom: wolochain.stakeCurrency.coinMinimalDenom, // ✅ nested path
           amount: Math.round(amountWolo * 1e6).toString(),
         };
-
+      
         const res = await client.sendTokens(
-          signer.getAccounts()[0].address,
+          accounts[0].address, // ✅ properly awaited
           recipient,
           [sendAmount],
           "auto"
         );
+      
         setTxResult(res);
       } catch (err: any) {
         setError(err.message || "Broadcast failed");
       } finally {
         setInProgress(false);
-      }
+      }      
     },
     [provider]
   );
