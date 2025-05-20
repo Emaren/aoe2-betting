@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 import { useUserAuth } from "@/context/UserAuthContext";
 
 export default function NamePrompt() {
-  const { playerName, setPlayerName, finishLogin, loading } = useUserAuth();
-  
+  const { playerName, setPlayerName, loading } = useUserAuth();
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && playerName.trim()) {
-      finishLogin();
+      // optionally set login status or route here
     }
   };
 
@@ -31,10 +31,10 @@ export default function NamePrompt() {
             placeholder="Your Steam/In-Game Name"
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
-            onKeyDown={handleKeyDown} // ✅ ENTER support
+            onKeyDown={handleKeyDown}
           />
           <Button
-            onClick={finishLogin}
+            onClick={() => {}} // 🔥 no-op or route logic here later
             disabled={!playerName.trim() || loading}
             className="w-full bg-blue-600 hover:bg-blue-700 py-3"
           >
