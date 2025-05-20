@@ -12,8 +12,7 @@ export function useWcConnector() {
     if (typeof window === "undefined") return;
 
     const wc = new WalletConnect({
-      bridge: "https://bridge.walletconnect.org",
-      qrcode: false,
+      bridge: "https://bridge.walletconnect.org"
     });
 
     if (wc.connected) {
