@@ -39,10 +39,10 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  /* ─── keep LS ↔︎ state ───────────────────────────── */
   useEffect(() => {
     const sync = () => {
-      setPlayerName(localStorage.getItem("playerName") ?? "");
+      const storedName = localStorage.getItem("playerName") ?? "";
+      setPlayerName(storedName === "My Account" ? "" : storedName); // 🧼 clean it
       setUid(localStorage.getItem("uid"));
       setIsAdmin(localStorage.getItem("isAdmin") === "true");
     };
@@ -51,13 +51,10 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", sync);
   }, []);
 
-  /* ─── 1) silent login if creds exist but Firebase signed-out ─── */
   useEffect(() => {
     const trySilentLogin = async () => {
       const auth = window.firebase?.auth?.();
-      if (!auth) return;
-
-      if (auth.currentUser) return;
+      if (!auth || auth.currentUser) return;
 
       const email = localStorage.getItem("userEmail");
       const pass = localStorage.getItem("userPass");
@@ -76,7 +73,6 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     trySilentLogin();
   }, []);
 
-  /* ─── 2) Firebase auth listener ──────────────────── */
   useEffect(() => {
     const unsub = window.firebase
       ?.auth?.()
@@ -117,7 +113,9 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
             const data = await res.json();
             if (data.in_game_name) {
               setPlayerName(data.in_game_name);
-              localStorage.setItem("playerName", data.in_game_name);
+              if (data.in_game_name !== "My Account") {
+                localStorage.setItem("playerName", data.in_game_name);
+              }
             }
             setIsAdmin(!!data.is_admin);
             localStorage.setItem("isAdmin", String(!!data.is_admin));
@@ -128,7 +126,6 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
           console.warn("fetch /me failed:", e);
         }
 
-        // ✅ Start ping loop to update last_seen
         const ping = async () => {
           try {
             const freshToken = await user.getIdToken();
@@ -143,15 +140,14 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
           }
         };
 
-        ping(); // initial ping
-        const interval = setInterval(ping, 60_000); // repeat every 60s
-        return () => clearInterval(interval); // cleanup
+        ping();
+        const interval = setInterval(ping, 60_000);
+        return () => clearInterval(interval);
       });
 
     return () => unsub?.();
   }, [playerName]);
 
-  /* ─── logout (keep creds and admin flag) ──────────── */
   const logout = async () => {
     const auth = window.firebase?.auth?.();
     await auth?.signOut();
@@ -170,7 +166,10 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     });
 
     localStorage.clear();
-    Object.entries(stash).forEach(([k, v]) => localStorage.setItem(k, v));
+    Object.entries(stash).forEach(([k, v]) => {
+      if (k === "playerName" && v === "My Account") return; // 🧼 skip junk
+      localStorage.setItem(k, v);
+    });
 
     setUid(null);
     setIsLoggedIn(false);
@@ -183,7 +182,9 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
         playerName,
         setPlayerName: (n: string) => {
           setPlayerName(n);
-          localStorage.setItem("playerName", n);
+          if (n && n !== "My Account") {
+            localStorage.setItem("playerName", n);
+          }
         },
         uid,
         setUid,
