@@ -13,12 +13,12 @@ const withPWA = require("next-pwa")({
   dest: "public",
   register: true,
   skipWaiting: true,
-  disable: isDev, // disable in dev to prevent Workbox + HMR loops
+  disable: isDev,
 });
 
 module.exports = withPWA({
-  reactStrictMode: false, // avoid double-render during dev
-  productionBrowserSourceMaps: false, // don't generate giant .map files
+  reactStrictMode: false,
+  productionBrowserSourceMaps: false,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -36,7 +36,9 @@ module.exports = withPWA({
       { source: "/api/user/update_name",   destination: `${API_BASE}/api/user/update_name` },
       { source: "/api/user/update_wallet", destination: `${API_BASE}/api/user/update_wallet` },
       { source: "/api/user/verify_token",  destination: `${API_BASE}/api/user/verify_token` },
-      { source: "/api/online_users",       destination: `${API_BASE}/api/user/online` },
+      { source: "/api/user/online",        destination: `${API_BASE}/api/user/online` },
+      { source: "/api/user/ping",          destination: `${API_BASE}/api/user/ping` },     // ✅ NEW
+      { source: "/api/chain-id",           destination: `${API_BASE}/api/chain-id` },      // ✅ NEW
       { source: "/api/health",             destination: `${API_BASE}/api/health` },
     ];
   },
