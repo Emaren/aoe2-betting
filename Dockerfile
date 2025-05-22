@@ -1,23 +1,23 @@
-# aoe2hd-frontend/Dockerfile
+FROM node:24-slim AS builder
 
-# ✅ Use Node.js base image
-FROM node:20-alpine
-
-# Set working directory
 WORKDIR /app
-
-# Copy package.json and install deps first (for caching)
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
-# Copy the rest of the project
 COPY . .
+RUN npm run build
 
-# Expose the port used by `next dev`
+# ───────────────────────────────
+FROM node:24-slim
+
+WORKDIR /app
+COPY --from=builder /app ./
+
+# Use non-root user for better security
+RUN addgroup app && adduser -S -G app app
+USER app
+
 EXPOSE 3000
+ENV NODE_ENV=production
 
-# Set env explicitly for dev mode inside Docker
-ENV NODE_ENV=development
-
-# Start the dev server
-CMD ["npm", "run", "dev"]
+CMD ["npm", "start"]
