@@ -38,7 +38,8 @@ export default function HeaderMenu({
   const handleLogout = async () => {
     try {
       await logout();
-      setPlayerName("My Account");
+      setPlayerName("");
+      localStorage.removeItem("playerName");
       router.push("/");
       router.refresh();
     } catch (err) {
@@ -46,6 +47,7 @@ export default function HeaderMenu({
       alert("Logout failed. Try again.");
     }
   };
+  
 
   const navigate = (path: string) => {
     setMenuOpen(false);
@@ -60,9 +62,9 @@ export default function HeaderMenu({
       >
         <UserCircle className="w-6 h-6" />
         <AnimatePresence mode="wait">
-          <motion.span key={playerName || "My Account"}>
-            {playerName}
-          </motion.span>
+        <motion.span key={playerName || "My Account"}>
+          {playerName && playerName !== "My Account" ? playerName : "My Account"}
+        </motion.span>
         </AnimatePresence>
       </button>
 
