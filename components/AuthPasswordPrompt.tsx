@@ -1,6 +1,7 @@
 // components/AuthPasswordPrompt.tsx
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,8 +21,14 @@ export default function AuthPasswordPrompt({
   mode,
   loading,
 }: Props) {
-  const title  = mode === "login" ? "Enter your password" : "Set your password";
-  const button = mode === "login" ? "Sign In"            : "Register & Start Betting";
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const title = mode === "login" ? "Enter your password" : "Set your password";
+  const button = mode === "login" ? "Sign In" : "Register & Start Betting";
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6">
@@ -37,6 +44,7 @@ export default function AuthPasswordPrompt({
             <h1 className="text-xl font-bold text-center">{title}</h1>
 
             <Input
+              ref={inputRef}
               className="text-black px-4 py-3 text-lg rounded-md"
               placeholder="Password"
               type="password"
