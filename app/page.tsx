@@ -145,7 +145,19 @@ export default function Page() {
         playerName={playerName}
       />
 
-      {isAdmin && <AdminUserList />}
+      {/* {isAdmin && <AdminUserList />} */}
+
+<a
+  href="https://discord.gg/aK56aWQ5"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="inline-flex items-center space-x-2 text-white hover:text-blue-400 transition"
+>
+  <img src="/icons/discord.svg" alt="Discord" className="w-6 h-6" />
+  <span>Join our Discord</span>
+</a>
+
+
     </main>
   );
 }

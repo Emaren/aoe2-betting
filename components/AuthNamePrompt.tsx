@@ -28,7 +28,7 @@ export default function AuthNamePrompt({
       <Card className="bg-gray-800 shadow-xl w-full max-w-md">
         <CardContent className="p-8 flex flex-col space-y-6">
           <h1 className="text-xl font-bold text-center">
-            Welcome to AoE2HD Betting App
+            Welcome to the AoE2HD Betting App
           </h1>
           <p className="text-gray-300 text-center">
             Enter your in-game name to start betting:
