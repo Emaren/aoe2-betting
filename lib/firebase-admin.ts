@@ -4,8 +4,8 @@ import { initializeApp, cert, getApps, App } from "firebase-admin/app";
 import { getAuth, Auth } from "firebase-admin/auth";
 
 // Safely parse the FIREBASE_ADMIN_KEY env variable
-const serviceAccount = process.env.FIREBASE_ADMIN_KEY
-  ? JSON.parse(process.env.FIREBASE_ADMIN_KEY)
+const serviceAccount = process.env.FIREBASE_ADMIN_SDK_BASE64
+  ? JSON.parse(Buffer.from(process.env.FIREBASE_ADMIN_SDK_BASE64, 'base64').toString('utf-8'))
   : null;
 
 if (!serviceAccount) {

@@ -24,7 +24,7 @@ export default function OnlineUsersPage() {
       const idToken = await getIdToken();
 
       try {
-        const res = await fetch("/api/online_users", {
+	const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user/online_users`, {
           headers: idToken
             ? { Authorization: `Bearer ${idToken}` }
             : undefined,
