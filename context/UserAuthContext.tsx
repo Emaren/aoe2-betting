@@ -42,7 +42,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const sync = () => {
       const storedName = localStorage.getItem("playerName") ?? "";
-      setPlayerName(storedName === "My Account" ? "" : storedName); // 🧼 clean it
+      setPlayerName(storedName === "My Account" ? "" : storedName);
       setUid(localStorage.getItem("uid"));
       setIsAdmin(localStorage.getItem("isAdmin") === "true");
     };
@@ -87,7 +87,6 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
 
         const id = user.uid;
         setUid(id);
-
         const token = await user.getIdToken(true);
         const email =
           localStorage.getItem("userEmail") || `${id}@aoe2hdbets.com`;
@@ -109,19 +108,25 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
             body: JSON.stringify({ uid: id, email, in_game_name: name }),
           });
 
-          if (res.ok) {
-            const data = await res.json();
-            if (data.in_game_name) {
-              setPlayerName(data.in_game_name);
-              if (data.in_game_name !== "My Account") {
-                localStorage.setItem("playerName", data.in_game_name);
-              }
+          if (!res.ok) {
+            if (res.status === 401) {
+              console.warn("👤 No DB user yet for this Firebase account.");
+              return;
+            } else {
+              console.error("❌ Failed to fetch user:", res.status);
+              return;
             }
-            setIsAdmin(!!data.is_admin);
-            localStorage.setItem("isAdmin", String(!!data.is_admin));
-          } else {
-            console.error("❌ Failed to fetch user:", res.status);
           }
+
+          const data = await res.json();
+          if (data.in_game_name) {
+            setPlayerName(data.in_game_name);
+            if (data.in_game_name !== "My Account") {
+              localStorage.setItem("playerName", data.in_game_name);
+            }
+          }
+          setIsAdmin(!!data.is_admin);
+          localStorage.setItem("isAdmin", String(!!data.is_admin));
         } catch (e) {
           console.warn("fetch /me failed:", e);
         }
@@ -167,7 +172,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
 
     localStorage.clear();
     Object.entries(stash).forEach(([k, v]) => {
-      if (k === "playerName" && v === "My Account") return; // 🧼 skip junk
+      if (k === "playerName" && v === "My Account") return;
       localStorage.setItem(k, v);
     });
 

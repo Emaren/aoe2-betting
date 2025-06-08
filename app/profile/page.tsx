@@ -25,6 +25,20 @@ export default function ProfilePage() {
       localStorage.clear();
       window.dispatchEvent(new Event("storage"));
       router.push("/");
+      // — unregister SW & clear all caches on logout
+
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+
+        const reg = await navigator.serviceWorker.ready;
+
+        await reg.unregister();
+
+        const keys = await caches.keys();
+
+        await Promise.all(keys.map(k => caches.delete(k)));
+
+      }
+
       window.location.reload();
     } catch (err) {
       console.error("❌ Logout failed:", err);

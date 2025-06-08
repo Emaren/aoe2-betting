@@ -1,27 +1,17 @@
-// next.config.js
-const isDev = process.env.NODE_ENV === "development";
-const isDocker = process.env.DOCKER === "true";
-console.log(`🛠 Running inside Docker: ${isDocker}`);
-
-const FALLBACK_API = "https://aoe2hd-parser-api.onrender.com";
-const API_BASE = isDocker
-  ? "http://aoe2-backend:8002"
-  : process.env.NEXT_PUBLIC_API_BASE_URL || FALLBACK_API;
-console.log(`🌐 Backend API base URL: ${API_BASE}`);
+// next.config.js — PWA removed, backend local on same VPS
 
 const withPWA = require("next-pwa")({
   dest: "public",
-  register: true,
-  skipWaiting: true,
-  disable: isDev,
+  disable: true,
 });
 
+const API_BASE = "";
+
 module.exports = withPWA({
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
   reactStrictMode: false,
   productionBrowserSourceMaps: false,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   env: {
     BACKEND_API: API_BASE,
     REPLAY_API: process.env.REPLAY_API || "",
@@ -37,8 +27,9 @@ module.exports = withPWA({
       { source: "/api/user/update_wallet", destination: `${API_BASE}/api/user/update_wallet` },
       { source: "/api/user/verify_token",  destination: `${API_BASE}/api/user/verify_token` },
       { source: "/api/user/online",        destination: `${API_BASE}/api/user/online` },
-      { source: "/api/user/ping",          destination: `${API_BASE}/api/user/ping` },     // ✅ NEW
-      { source: "/api/chain-id",           destination: `${API_BASE}/api/chain-id` },      // ✅ NEW
+      { source: "/api/user/online_users", destination: `${API_BASE}/api/user/online_users` },
+      { source: "/api/user/ping",          destination: `${API_BASE}/api/user/ping` },
+      { source: "/api/chain-id",           destination: `${API_BASE}/api/chain-id` },
       { source: "/api/health",             destination: `${API_BASE}/api/health` },
     ];
   },

@@ -27,6 +27,43 @@ export function Providers({ children }: { children: ReactNode }) {
       firebase.initializeApp(firebaseConfig);
       console.log("🔥 Firebase initialised");
       window.firebase = firebase as any;
+
+      // ✅ Sync Firebase user with backend
+      const syncUserWithBackend = async () => {
+        const user = firebase.auth().currentUser;
+        if (!user) return;
+
+        const token = await user.getIdToken();
+        const email = user.email || localStorage.getItem("userEmail");
+        const playerName = localStorage.getItem("playerName");
+
+        if (!email || !playerName) return;
+
+        try {
+          const res = await fetch("/api/user/me", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              uid: user.uid,
+              email,
+              in_game_name: playerName,
+            }),
+          });
+
+          if (!res.ok) {
+            console.error("❌ Failed to sync with /api/user/me:", await res.text());
+          } else {
+            console.log("✅ Synced with /api/user/me");
+          }
+        } catch (err) {
+          console.error("❌ Sync error:", err);
+        }
+      };
+
+      setTimeout(syncUserWithBackend, 500); // slight delay for auth to stabilize
     }
   }, []);
 
