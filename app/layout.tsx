@@ -5,7 +5,6 @@ import React from "react";
 import "./globals.css";
 import WalletConnector from "@/components/WalletConnector";
 import EarlyPatches from "@/components/EarlyPatches";
-import PWARegister from "@/app/pwa";
 import HeaderMenu from "@/components/HeaderMenu";
 import { Toaster } from "sonner";
 import { Providers } from "./Providers";
@@ -43,7 +42,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head />
       <body className="bg-gray-900 text-white min-h-screen flex flex-col">
         <EarlyPatches />
-        <PWARegister />
         <UserAuthProvider>
           <Providers>
             <InnerLayout>{children}</InnerLayout>

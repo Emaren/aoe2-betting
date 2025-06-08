@@ -6,7 +6,8 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    const backendRes = await fetch("http://127.0.0.1:8002/api/chain-id");
+    // ← this line will be replaced
+    const backendRes = await fetch(`${process.env.FASTAPI_API_URL}/api/chain-id`);
     const json = await backendRes.json();
     res.status(200).json(json);
   } catch (error) {
