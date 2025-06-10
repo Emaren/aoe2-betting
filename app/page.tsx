@@ -8,16 +8,17 @@ import AuthPasswordPrompt from "@/components/AuthPasswordPrompt";
 import MainBetUI from "@/components/MainBetUI";
 import AdminUserList from "@/components/AdminUserList";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
+console.log("✅", API_BASE);
+
 export default function Page() {
-  const { uid, playerName, setPlayerName, setUid, loading, isAdmin } =
-    useUserAuth();
+  const { uid, playerName, setPlayerName, setUid, loading, isAdmin } = useUserAuth();
 
   const [showPwPrompt, setShowPwPrompt] = useState(false);
   const [password, setPassword] = useState("");
   const [opponent, setOpponent] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
 
-  /* reset password prompt after logout */
   useEffect(() => {
     if (!uid) setShowPwPrompt(false);
   }, [uid]);
@@ -26,7 +27,6 @@ export default function Page() {
     if (playerName.trim()) setShowPwPrompt(true);
   };
 
-  /* login / register (unchanged) */
   const savePasswordAndAuth = async () => {
     if (!password.trim()) return;
 
@@ -61,7 +61,7 @@ export default function Page() {
       localStorage.setItem("playerName", playerName.trim());
     }
 
-    const meRes = await fetch("/api/user/me", {
+    const meRes = await fetch(`${API_BASE}/api/user/me`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -71,7 +71,7 @@ export default function Page() {
     });
 
     if (meRes.status === 404) {
-      const regRes = await fetch("/api/user/register", {
+      const regRes = await fetch(`${API_BASE}/api/user/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -100,7 +100,6 @@ export default function Page() {
     window.dispatchEvent(new Event("storage"));
   };
 
-  /* conditional UI */
   if (!uid && !showPwPrompt) {
     return (
       <AuthNamePrompt
@@ -124,7 +123,6 @@ export default function Page() {
     );
   }
 
-  /* main page */
   return (
     <main className="flex-1 max-w-4xl mx-auto p-4 bg-gray-900 text-white min-h-screen space-y-8">
       <MainBetUI
@@ -146,17 +144,6 @@ export default function Page() {
       />
 
       {/* {isAdmin && <AdminUserList />} */}
-
-<a
-  href="https://discord.gg/aK56aWQ5"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="inline-flex items-center space-x-2 text-white hover:text-blue-400 transition"
->
-  <img src="/icons/discord.svg" alt="Discord" className="w-6 h-6" />
-  <span>Join our Discord</span>
-</a>
-
 
     </main>
   );

@@ -56,7 +56,7 @@ export default function AuthNamePrompt({
   className="inline-flex items-center space-x-2 text-white hover:text-blue-400 transition"
 >
   <img src="/icons/discord.svg" alt="Discord" className="w-6 h-6" />
-  <span>Join our Discord</span>
+  <span>Our Discord</span>
 </a>
     </div>
   );

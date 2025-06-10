@@ -5,7 +5,7 @@ const withPWA = require("next-pwa")({
   disable: true,
 });
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8002";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8003";
 
 module.exports = withPWA({
   eslint: { ignoreDuringBuilds: true },
