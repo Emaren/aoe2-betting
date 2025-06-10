@@ -4,21 +4,29 @@ import subprocess
 import os
 
 repos = {
-    "local": {
-        "aoe2hd-frontend": "/Users/tonyblum/projects/aoe2hd-frontend",
-        "aoe2hd-parsing": "/Users/tonyblum/projects/aoe2hd-parsing",
-        "bdjuno-wolo": "/Users/tonyblum/projects/bdjuno-wolo",
-        "big-dipper-2.0-cosmos": "/Users/tonyblum/projects/big-dipper-2.0-cosmos",
-        "explorerdev": "/Users/tonyblum/projects/explorerdev",
-        "wolodev": "/Users/tonyblum/projects/wolodev",
+    "local-staging": {
+        "aoe2hd-frontend": "/Users/tonyblum/projects/app-staging",
+        "aoe2hd-parsing": "/Users/tonyblum/projects/api-staging",
+        "explorerdev": "/Users/tonyblum/projects/explorer-staging",
+        "wolodev": "/Users/tonyblum/projects/wolo-staging",
     },
-    "vps": {
-        "aoe2hd-frontend": "/var/www/aoe2hdbets.com-app/aoe2hd-frontend",
-        "aoe2hd-parsing": "/var/www/aoe2hdbets-api/aoe2hd-parsing",
-        "bdjuno-wolo": "/var/www/bdjuno-wolo",
-        "big-dipper-2.0-cosmos": "/var/www/big-dipper-2.0-cosmos",
-        "explorerdev": "/var/www/explorerdev",
-        "wolodev": "/var/www/wolodev",
+    "local-prod": {
+        "aoe2hd-frontend": "/Users/tonyblum/projects/app-prod",
+        "aoe2hd-parsing": "/Users/tonyblum/projects/api-prod",
+        "explorerdev": "/Users/tonyblum/projects/explorer-prod",
+        "wolodev": "/Users/tonyblum/projects/wolo-prod",
+    },
+    "vps-staging": {
+        "aoe2hd-frontend": "/var/www/app-staging",
+        "aoe2hd-parsing": "/var/www/api-staging",
+        "explorerdev": "/var/www/explorer-staging",
+        "wolodev": "/var/www/wolo-staging",
+    },
+    "vps-prod": {
+        "aoe2hd-frontend": "/var/www/app-prod",
+        "aoe2hd-parsing": "/var/www/api-prod",
+        "explorerdev": "/var/www/explorer-prod",
+        "wolodev": "/var/www/wolo-prod",
     }
 }
 
@@ -29,7 +37,10 @@ def check_status(repo_path):
         os.chdir(repo_path)
         branch = subprocess.check_output(["git", "branch", "--show-current"], text=True).strip()
         status = subprocess.check_output(["git", "status", "--short"], text=True).strip()
-        remote_diff = subprocess.check_output(["git", "rev-list", "--left-right", "--count", f"{branch}...origin/{branch}"], text=True).strip()
+        remote_diff = subprocess.check_output(
+            ["git", "rev-list", "--left-right", "--count", f"{branch}...origin/{branch}"],
+            text=True
+        ).strip()
         ahead, behind = map(int, remote_diff.split())
         return f"{repo_path} [{branch}] ✅ Ahead: {ahead}, Behind: {behind}, Dirty: {'Yes' if status else 'No'}"
     except Exception as e:
@@ -43,4 +54,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
