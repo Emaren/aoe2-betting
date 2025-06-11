@@ -3,10 +3,10 @@
 import { Bech32Address } from "@keplr-wallet/cosmos";
 
 export const woloChainConfig = {
-  chainId: "wolochain",
-  chainName: "Wolochain Local",
-  rpc: "http://localhost:26657",
-  rest: "http://localhost:1317",
+  chainId: "wolo",
+  chainName: "WoloChain",
+  rpc: "https://rpc.aoe2hdbets.com",
+  rest: "https://api.aoe2hdbets.com",
   bip44: { coinType: 118 },
   bech32Config: Bech32Address.defaultBech32Config("wolo"),
 
