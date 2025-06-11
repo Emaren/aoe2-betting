@@ -15,6 +15,7 @@ module.exports = withPWA({
   env: {
     BACKEND_API: API_BASE,
     REPLAY_API: process.env.REPLAY_API || "",
+    NEXT_PUBLIC_CHAIN_REST: process.env.NEXT_PUBLIC_CHAIN_REST,
   },
   async rewrites() {
     return [

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-const REST = "http://localhost:1317/cosmos/bank/v1beta1";
+const REST = "https://api.aoe2hdbets.com/cosmos/bank/v1beta1";
 
 export function useWoloBalance(address?: string) {
   return useQuery<string>({
